@@ -14,6 +14,12 @@
 
 Ponder is a lightweight, SQLite-based task management system designed for AI agents and developers. It manages tasks with dependency relationships, tracks work progress, and integrates seamlessly with MCP (Model Context Protocol) servers.
 
+## Screenshots
+
+<p align="center">
+  <img src="media/screenshot.png" alt="Ponder Web Interface" width="800">
+</p>
+
 ## Features
 
 - **Task Management**: Create, update, and track tasks with priorities, descriptions, and specifications
