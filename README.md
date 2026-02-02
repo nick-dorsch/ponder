@@ -38,7 +38,7 @@ Ponder is a lightweight, SQLite-based task management system designed for AI age
 Install the latest release directly from GitHub:
 
 ```bash
-go install github.com/nick-dorsch/ponder/cmd/ponder@latest
+go install github.com/nick-dorsch/ponder/cmd/ponder@v0.1.0
 ```
 
 ### From Source
