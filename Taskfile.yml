@@ -1,0 +1,49 @@
+version: '3'
+
+tasks:
+  build:
+    desc: Build the ponder binary to ./ponder
+    cmds:
+      - go build -o ponder ./cmd/ponder
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test -tags=integration ./...
+
+  test-unit:
+    desc: Run unit tests (excluding integration tags)
+    cmds:
+      - go test ./...
+
+  test-integration:
+    desc: Run integration tests
+    cmds:
+      - go test -tags=integration ./...
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run
+
+  fmt:
+    desc: Format code
+    cmds:
+      - go fmt ./...
+      - goimports -w .
+
+  generate-sql:
+    desc: Concatenate SQL files into embed/sql/schema.sql
+    cmds:
+      - mkdir -p embed/sql
+      - cat sql/tables/*.sql sql/views/*.sql > embed/sql/schema.sql
+
+  install:
+    desc: Install ponder binary locally
+    cmds:
+      - go install ./cmd/ponder
+
+  clean:
+    desc: Remove built binary and temporary artifacts
+    cmds:
+      - rm -f ponder
