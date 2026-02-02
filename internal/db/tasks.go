@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/ldi/ponder/pkg/models"
+	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
 // CreateTask inserts a new task into the database.

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/ldi/ponder/pkg/models"
+	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
 func TestGetGraphJSON(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ldi/ponder/pkg/models"
+	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
 func TestWorker_ExitOnNoTasks(t *testing.T) {

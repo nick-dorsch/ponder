@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/ldi/ponder/embed/graph_assets"
-	"github.com/ldi/ponder/internal/db"
+	"github.com/nick-dorsch/ponder/embed/graph_assets"
+	"github.com/nick-dorsch/ponder/internal/db"
 )
 
 type Server struct {

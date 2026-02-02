@@ -7,9 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ldi/ponder/embed/graph_assets"
-	"github.com/ldi/ponder/internal/db"
-	"github.com/ldi/ponder/pkg/models"
+	"github.com/nick-dorsch/ponder/embed/graph_assets"
+	"github.com/nick-dorsch/ponder/internal/db"
+	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
 func TestServer_API(t *testing.T) {

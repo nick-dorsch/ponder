@@ -9,8 +9,8 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/ldi/ponder/embed/prompts"
-	"github.com/ldi/ponder/pkg/models"
+	"github.com/nick-dorsch/ponder/embed/prompts"
+	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
 // TaskStore defines the interface for database operations required by the orchestrator.

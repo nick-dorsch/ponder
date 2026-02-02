@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ldi/ponder/pkg/models"
+	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
 func TestDependencies(t *testing.T) {

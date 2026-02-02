@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/ldi/ponder/pkg/models"
+	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
 // EnableAutoSnapshot sets up a hook that automatically exports a snapshot

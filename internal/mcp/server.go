@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ldi/ponder/internal/db"
-	"github.com/ldi/ponder/pkg/models"
+	"github.com/nick-dorsch/ponder/internal/db"
+	"github.com/nick-dorsch/ponder/pkg/models"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )

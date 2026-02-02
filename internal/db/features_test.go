@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ldi/ponder/pkg/models"
+	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
 func TestFeatureCRUD(t *testing.T) {

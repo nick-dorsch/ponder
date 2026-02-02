@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ldi/ponder/embed/prompts"
-	"github.com/ldi/ponder/pkg/models"
+	"github.com/nick-dorsch/ponder/embed/prompts"
+	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
 // mockTaskStore is a mock implementation of TaskStore for testing.

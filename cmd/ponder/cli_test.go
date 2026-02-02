@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ldi/ponder/internal/db"
-	"github.com/ldi/ponder/pkg/models"
+	"github.com/nick-dorsch/ponder/internal/db"
+	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
 func setupTestDB(t *testing.T) (string, string) {

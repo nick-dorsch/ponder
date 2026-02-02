@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	embedsql "github.com/ldi/ponder/embed/sql"
+	embedsql "github.com/nick-dorsch/ponder/embed/sql"
 	_ "modernc.org/sqlite"
 )
 

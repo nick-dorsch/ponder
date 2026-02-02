@@ -11,12 +11,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ldi/ponder/internal/db"
-	"github.com/ldi/ponder/internal/mcp"
-	"github.com/ldi/ponder/internal/orchestrator"
-	"github.com/ldi/ponder/internal/server"
-	"github.com/ldi/ponder/internal/ui"
-	"github.com/ldi/ponder/pkg/models"
+	"github.com/nick-dorsch/ponder/internal/db"
+	"github.com/nick-dorsch/ponder/internal/mcp"
+	"github.com/nick-dorsch/ponder/internal/orchestrator"
+	"github.com/nick-dorsch/ponder/internal/server"
+	"github.com/nick-dorsch/ponder/internal/ui"
+	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
 var (

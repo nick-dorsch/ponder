@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ldi/ponder/embed/graph_assets"
+	"github.com/nick-dorsch/ponder/embed/graph_assets"
 )
 
 func TestBranding(t *testing.T) {
