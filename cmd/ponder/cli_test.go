@@ -25,7 +25,6 @@ func setupTestDB(t *testing.T) (string, string) {
 
 	dbFilePath := filepath.Join(ponderDir, "ponder.db")
 
-	// Reset global dbPath for the test
 	dbPath = dbFilePath
 
 	database, err := db.Open(dbFilePath)
@@ -38,7 +37,6 @@ func setupTestDB(t *testing.T) (string, string) {
 		t.Fatalf("failed to init db: %v", err)
 	}
 
-	// Seed some data
 	ctx := context.Background()
 	f1 := &models.Feature{Name: "feature1", Description: "desc1"}
 	if err := database.CreateFeature(ctx, f1); err != nil {
@@ -62,7 +60,6 @@ func TestListFeatures(t *testing.T) {
 	tmpDir, _ := setupTestDB(t)
 	defer os.RemoveAll(tmpDir)
 
-	// Capture stdout
 	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
@@ -88,7 +85,6 @@ func TestListTasks(t *testing.T) {
 	tmpDir, _ := setupTestDB(t)
 	defer os.RemoveAll(tmpDir)
 
-	// Capture stdout
 	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
@@ -114,7 +110,6 @@ func TestStatus(t *testing.T) {
 	tmpDir, _ := setupTestDB(t)
 	defer os.RemoveAll(tmpDir)
 
-	// Capture stdout
 	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
@@ -140,7 +135,6 @@ func TestDBStatus(t *testing.T) {
 	tmpDir, _ := setupTestDB(t)
 	defer os.RemoveAll(tmpDir)
 
-	// Capture stdout
 	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w

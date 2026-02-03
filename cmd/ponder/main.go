@@ -99,7 +99,6 @@ func runInit(args []string) error {
 	}
 	fmt.Println("✓ Created .ponder/.gitignore")
 
-	// Default paths if not overridden by flags
 	finalDbPath := dbPath
 	if dbPath == ".ponder/ponder.db" {
 		finalDbPath = filepath.Join(ponderDir, "ponder.db")
@@ -122,19 +121,16 @@ func runInit(args []string) error {
 	}
 	fmt.Printf("✓ Initialized database at %s\n", finalDbPath)
 
-	// Check if snapshot exists and import it
 	if _, err := os.Stat(finalSnapshotPath); err == nil {
 		if err := database.ImportSnapshot(ctx, finalSnapshotPath); err != nil {
 			return fmt.Errorf("failed to import snapshot: %w", err)
 		}
 		fmt.Printf("✓ Imported snapshot from %s\n", finalSnapshotPath)
 	} else {
-		// If no snapshot, seed default "misc" feature
 		feature := &models.Feature{
 			Name:        "misc",
 			Description: "Miscellaneous tasks",
 		}
-		// Check if it already exists
 		existing, err := database.GetFeatureByName(ctx, "misc")
 		if err != nil {
 			return fmt.Errorf("failed to check for existing misc feature: %w", err)
@@ -163,7 +159,6 @@ func runMCP(args []string) error {
 		return err
 	}
 
-	// Set auto-snapshotting
 	database.SetOnChange(func(ctx context.Context) {
 		if err := database.ExportSnapshot(ctx, snapshotPath); err != nil {
 			fmt.Fprintf(os.Stderr, "Error exporting snapshot: %v\n", err)
@@ -243,7 +238,6 @@ func runListTasks(args []string) error {
 	}
 	defer database.Close()
 
-	// Parse flags for filtering
 	taskFlags := flag.NewFlagSet("list-tasks", flag.ContinueOnError)
 	statusFilter := taskFlags.String("status", "", "Filter by status (pending, in_progress, completed, blocked)")
 	featureFilter := taskFlags.String("feature", "", "Filter by feature name")
@@ -305,7 +299,6 @@ func runStatus(args []string) error {
 	fmt.Printf("Total Tasks:     %d\n", len(tasks))
 	fmt.Printf("Available Tasks: %d\n", len(available))
 
-	// Count by status
 	statusCounts := make(map[models.TaskStatus]int)
 	for _, t := range tasks {
 		statusCounts[t.Status]++
@@ -341,52 +334,7 @@ func runOrchestrate(args []string) error {
 		return err
 	}
 
-	database, err := db.Open(dbPath)
-	if err != nil {
-		return err
-	}
-	defer database.Close()
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	if err := database.Init(ctx); err != nil {
-		return err
-	}
-
-	// Set auto-snapshotting for the orchestrator too
-	database.SetOnChange(func(ctx context.Context) {
-		if err := database.ExportSnapshot(ctx, snapshotPath); err != nil {
-			fmt.Fprintf(os.Stderr, "Error exporting snapshot: %v\n", err)
-		}
-	})
-
-	orch := orchestrator.NewOrchestrator(database, *maxWorkers, *model)
-	orch.PollingInterval = *interval
-
-	// Start web server if enabled
-	var webURL string
-	if *enableWeb {
-		srv := server.NewServer(database)
-		webURL = fmt.Sprintf("http://localhost:%s", *webPort)
-		orch.WebURL = webURL
-
-		go func() {
-			if err := srv.Start(fmt.Sprintf(":%s", *webPort)); err != nil && err != http.ErrServerClosed {
-				fmt.Fprintf(os.Stderr, "Web server error: %v\n", err)
-			}
-		}()
-
-		// Ensure graceful shutdown
-		go func() {
-			<-ctx.Done()
-			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			srv.Shutdown(shutdownCtx)
-		}()
-	}
-
-	return orchestrator.Run(ctx, orch)
+	return runOrchestratorCommon(*maxWorkers, *model, *interval, *enableWeb, *webPort)
 }
 
 func runWork(args []string) error {
@@ -400,6 +348,10 @@ func runWork(args []string) error {
 		return err
 	}
 
+	return runOrchestratorCommon(*concurrency, *model, *interval, *enableWeb, *webPort)
+}
+
+func runOrchestratorCommon(concurrency int, model string, interval time.Duration, enableWeb bool, webPort string) error {
 	database, err := db.Open(dbPath)
 	if err != nil {
 		return err
@@ -413,30 +365,25 @@ func runWork(args []string) error {
 		return err
 	}
 
-	// Set auto-snapshotting for the orchestrator too
 	database.SetOnChange(func(ctx context.Context) {
 		if err := database.ExportSnapshot(ctx, snapshotPath); err != nil {
 			fmt.Fprintf(os.Stderr, "Error exporting snapshot: %v\n", err)
 		}
 	})
 
-	orch := orchestrator.NewOrchestrator(database, *concurrency, *model)
-	orch.PollingInterval = *interval
+	orch := orchestrator.NewOrchestrator(database, concurrency, model)
+	orch.PollingInterval = interval
 
-	// Start web server if enabled
-	var webURL string
-	if *enableWeb {
+	if enableWeb {
 		srv := server.NewServer(database)
-		webURL = fmt.Sprintf("http://localhost:%s", *webPort)
-		orch.WebURL = webURL
+		orch.WebURL = fmt.Sprintf("http://localhost:%s", webPort)
 
 		go func() {
-			if err := srv.Start(fmt.Sprintf(":%s", *webPort)); err != nil && err != http.ErrServerClosed {
+			if err := srv.Start(fmt.Sprintf(":%s", webPort)); err != nil && err != http.ErrServerClosed {
 				fmt.Fprintf(os.Stderr, "Web server error: %v\n", err)
 			}
 		}()
 
-		// Ensure graceful shutdown
 		go func() {
 			<-ctx.Done()
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

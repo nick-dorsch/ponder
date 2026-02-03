@@ -7,30 +7,25 @@ import (
 )
 
 func TestInit(t *testing.T) {
-	// Create a temporary directory for the test
 	tmpDir, err := os.MkdirTemp("", "ponder-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Set dbPath and snapshotPath to default values as they would be in main
 	dbPath = ".ponder/ponder.db"
 	snapshotPath = ".ponder/snapshot.jsonl"
 
-	// Run init in the temp directory
 	err = runInit([]string{tmpDir})
 	if err != nil {
 		t.Fatalf("runInit failed: %v", err)
 	}
 
-	// Verify .ponder directory exists
 	ponderDir := filepath.Join(tmpDir, ".ponder")
 	if _, err := os.Stat(ponderDir); os.IsNotExist(err) {
 		t.Errorf(".ponder directory was not created")
 	}
 
-	// Verify .gitignore exists and contains ponder.db*
 	gitignorePath := filepath.Join(ponderDir, ".gitignore")
 	content, err := os.ReadFile(gitignorePath)
 	if err != nil {
@@ -40,7 +35,6 @@ func TestInit(t *testing.T) {
 		t.Errorf(".gitignore content mismatch: expected 'ponder.db*\\n', got %q", string(content))
 	}
 
-	// Verify database file exists
 	dbFilePath := filepath.Join(ponderDir, "ponder.db")
 	if _, err := os.Stat(dbFilePath); os.IsNotExist(err) {
 		t.Errorf("database file was not created")
@@ -48,7 +42,6 @@ func TestInit(t *testing.T) {
 }
 
 func TestInitWithExistingSnapshot(t *testing.T) {
-	// Create a temporary directory for the test
 	tmpDir, err := os.MkdirTemp("", "ponder-test-snapshot-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -60,7 +53,6 @@ func TestInitWithExistingSnapshot(t *testing.T) {
 		t.Fatalf("failed to create .ponder dir: %v", err)
 	}
 
-	// Create a dummy snapshot file
 	snapshotPath := filepath.Join(ponderDir, "snapshot.jsonl")
 	snapshotContent := `{"record_type":"feature","name":"test-feature","description":"test","specification":"test"}
 `
@@ -68,9 +60,7 @@ func TestInitWithExistingSnapshot(t *testing.T) {
 		t.Fatalf("failed to create dummy snapshot: %v", err)
 	}
 
-	// Set dbPath and snapshotPath to default values
 	dbPath = ".ponder/ponder.db"
-	// We need to reset it because it's a global variable
 	defer func() {
 		dbPath = ".ponder/ponder.db"
 		globalsnapshotPath := ".ponder/snapshot.jsonl"
@@ -82,17 +72,13 @@ func TestInitWithExistingSnapshot(t *testing.T) {
 		t.Fatalf("runInit failed: %v", err)
 	}
 
-	// Verify database file exists
 	dbFilePath := filepath.Join(ponderDir, "ponder.db")
 	if _, err := os.Stat(dbFilePath); os.IsNotExist(err) {
 		t.Errorf("database file was not created")
 	}
-
-	// We could verify the content of the DB here, but that would require opening it
 }
 
 func TestInitOverwritesGitignore(t *testing.T) {
-	// Create a temporary directory for the test
 	tmpDir, err := os.MkdirTemp("", "ponder-test-overwrite-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -104,23 +90,19 @@ func TestInitOverwritesGitignore(t *testing.T) {
 		t.Fatalf("failed to create .ponder dir: %v", err)
 	}
 
-	// Create an existing .gitignore with different content
 	gitignorePath := filepath.Join(ponderDir, ".gitignore")
 	if err := os.WriteFile(gitignorePath, []byte("old-content\n"), 0644); err != nil {
 		t.Fatalf("failed to create initial .gitignore: %v", err)
 	}
 
-	// Set dbPath and snapshotPath to default values
 	dbPath = ".ponder/ponder.db"
 	snapshotPath = ".ponder/snapshot.jsonl"
 
-	// Run init
 	err = runInit([]string{tmpDir})
 	if err != nil {
 		t.Fatalf("runInit failed: %v", err)
 	}
 
-	// Verify .gitignore was overwritten
 	content, err := os.ReadFile(gitignorePath)
 	if err != nil {
 		t.Fatalf("failed to read .gitignore: %v", err)
