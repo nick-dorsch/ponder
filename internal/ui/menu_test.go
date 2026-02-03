@@ -9,12 +9,10 @@ import (
 func TestMenuModel(t *testing.T) {
 	m := NewMenuModel()
 
-	// Test initial state
 	if m.cursor != 0 {
 		t.Errorf("expected cursor 0, got %d", m.cursor)
 	}
 
-	// Test navigation down
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")}
 	model, _ := m.Update(msg)
 	m = model.(MenuModel)
@@ -22,7 +20,6 @@ func TestMenuModel(t *testing.T) {
 		t.Errorf("expected cursor 1 after 'j', got %d", m.cursor)
 	}
 
-	// Test navigation up
 	msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")}
 	model, _ = m.Update(msg)
 	m = model.(MenuModel)
@@ -30,7 +27,6 @@ func TestMenuModel(t *testing.T) {
 		t.Errorf("expected cursor 0 after 'k', got %d", m.cursor)
 	}
 
-	// Test selection
 	msg = tea.KeyMsg{Type: tea.KeyEnter}
 	model, cmd := m.Update(msg)
 	m = model.(MenuModel)
@@ -41,7 +37,6 @@ func TestMenuModel(t *testing.T) {
 		t.Error("expected quit command after enter")
 	}
 
-	// Test quitting
 	msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")}
 	model, cmd = m.Update(msg)
 	m = model.(MenuModel)

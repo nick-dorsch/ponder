@@ -24,27 +24,19 @@ var (
 				Foreground(lipgloss.Color("241"))
 )
 
-// WorkerOutput renders worker output in a viewport.
 type WorkerOutput struct {
 	viewport viewport.Model
 	output   strings.Builder
 	ready    bool
-	width    int
-	height   int
 }
 
-// NewWorkerOutput creates a new WorkerOutput.
 func NewWorkerOutput(width, height int) *WorkerOutput {
 	return &WorkerOutput{
 		viewport: viewport.New(width, height),
-		width:    width,
-		height:   height,
 	}
 }
 
 func (o *WorkerOutput) SetSize(width, height int) {
-	o.width = width
-	o.height = height
 	vpWidth := width
 	if width > 0 {
 		vpWidth = width - 1

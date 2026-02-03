@@ -40,7 +40,6 @@ type TaskResult struct {
 	Success bool
 }
 
-// CompletedTasks renders a list of completed tasks.
 type CompletedTasks struct {
 	Succeeded []TaskResult
 	Failed    []TaskResult
@@ -51,7 +50,6 @@ type CompletedTasks struct {
 	History []TaskResult
 }
 
-// NewCompletedTasks creates a new CompletedTasks component.
 func NewCompletedTasks(width int) *CompletedTasks {
 	return &CompletedTasks{
 		Succeeded: make([]TaskResult, 0),
@@ -61,7 +59,6 @@ func NewCompletedTasks(width int) *CompletedTasks {
 	}
 }
 
-// Add adds a task result to the history.
 func (c *CompletedTasks) Add(res TaskResult, limit int) {
 	if res.Success {
 		c.Succeeded = c.appendWithLimit(c.Succeeded, res, limit)
