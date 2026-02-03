@@ -224,7 +224,7 @@ func (m *OrchestratorModel) scrollIntoView() {
 
 	headerHeight := m.getHeaderHeight()
 	helpHeight := 1
-	availableHeight := m.height - headerHeight - helpHeight - 2
+	availableHeight := m.height - headerHeight - helpHeight
 	if availableHeight <= 0 {
 		return
 	}
@@ -298,8 +298,8 @@ func (m *OrchestratorModel) recalculateLayout() {
 
 	headerHeight := m.getHeaderHeight()
 	helpHeight := 1
-	// Available height for content: total height - header - help - separator line
-	availableHeight := m.height - headerHeight - helpHeight - 2
+	// Available height for content: total height - header - help
+	availableHeight := m.height - headerHeight - helpHeight
 
 	if availableHeight < 10 {
 		availableHeight = 10
@@ -308,7 +308,7 @@ func (m *OrchestratorModel) recalculateLayout() {
 	// Update completed tasks width
 	// sidebarWidth is total including right border, so content is sidebarWidth-1.
 	// CompletedTasks box has 2-char border overhead.
-	m.completedTasks.Width = m.sidebarWidth - 1 - 2
+	m.completedTasks.Width = m.sidebarWidth - 1
 
 	for _, view := range m.workerViews {
 		if view.IsExpanded() {
@@ -351,7 +351,7 @@ func (m *OrchestratorModel) View() string {
 	helpHeight := lipgloss.Height(help)
 
 	// 3. Main Content Area (Two Columns)
-	availableHeight := m.height - headerHeight - helpHeight - 2
+	availableHeight := m.height - headerHeight - helpHeight
 	if availableHeight < 0 {
 		availableHeight = 0
 	}

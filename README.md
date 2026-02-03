@@ -188,7 +188,7 @@ ponder init [directory]
 ponder work
 
 # Work command flags
-ponder work -concurrency 5          # Number of concurrent workers (default: 3)
+ponder work -concurrency 5          # Number of concurrent workers (default: 4)
 ponder work -model <model>          # Model for workers (default: opencode/gemini-3-flash)
 ponder work -interval 10s           # Polling interval when idle (default: 5s, 0 to exit)
 ponder work -web=false              # Disable web UI (default: enabled)

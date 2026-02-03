@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func TestNewOrchestratorModel(t *testing.T) {
@@ -101,13 +102,17 @@ func TestOrchestratorModel_Scrolling(t *testing.T) {
 	m.focusedWorker = 5
 	m.scrollIntoView()
 
-	// 10 workers pre-populated. Each collapsed worker is 12 lines.
-	// Worker 1-4 take 48 lines. Worker 5 starts at line 48, ends at line 60.
-	// Available height: 20 - 3 (header) - 1 (help) - 2 (separators) = 14.
-	// To show Worker 5 (bottomPos 60), scrollOffset should be at least 60 - 14 = 46.
+	headerHeight := m.getHeaderHeight()
+	helpHeight := lipgloss.Height(m.renderHelp())
+	availableHeight := m.height - headerHeight - helpHeight
 
-	if m.scrollOffset < 46 {
-		t.Errorf("expected scrollOffset to be at least 46 to show worker 5, got %d", m.scrollOffset)
+	workerHeight := m.workerViews[1].GetHeight()
+	topPos := workerHeight * 4
+	bottomPos := topPos + m.workerViews[5].GetHeight()
+	expectedMinOffset := bottomPos - availableHeight
+
+	if m.scrollOffset < expectedMinOffset {
+		t.Errorf("expected scrollOffset to be at least %d to show worker 5, got %d", expectedMinOffset, m.scrollOffset)
 	}
 
 	// Move focus to worker 1
@@ -141,11 +146,12 @@ func TestOrchestratorModel_Expansion(t *testing.T) {
 		t.Errorf("expected worker 2 to be collapsed")
 	}
 
-	// Check height of expanded worker
-	// Height is 40. Header is 3. Help is 1. Two separators.
-	// availableHeight = 40 - 3 - 1 - 2 = 34.
-	if m.workerViews[1].GetHeight() != 34 {
-		t.Errorf("expected expanded worker height to be 34, got %d", m.workerViews[1].GetHeight())
+	headerHeight := m.getHeaderHeight()
+	helpHeight := lipgloss.Height(m.renderHelp())
+	availableHeight := m.height - headerHeight - helpHeight
+
+	if m.workerViews[1].GetHeight() != availableHeight {
+		t.Errorf("expected expanded worker height to be %d, got %d", availableHeight, m.workerViews[1].GetHeight())
 	}
 
 	// Toggle expansion again
@@ -246,19 +252,19 @@ func TestOrchestratorModel_RecalculateLayout_HeaderIntegration(t *testing.T) {
 	width, height := 100, 40
 	m.Update(tea.WindowSizeMsg{Width: width, Height: height})
 
-	// Header height is 3
-	// availableHeight = 40 - 3 - 1 (help) - 2 (separators) = 34
-
 	view := m.workerViews[1]
-	if view.GetHeight() != 12 { // Collapsed default height from updateOutputSize
+	if view.GetHeight() != 14 { // Collapsed default height from updateOutputSize
 		// wait, recalculateLayout says:
 		// view.SetSize(m.workersWidth-2, 15) for collapsed
 	}
 
 	// Expand to test availableHeight calculation
 	m.toggleExpanded()
-	if view.GetHeight() != 34 {
-		t.Errorf("expected expanded worker height to be 34, got %d", view.GetHeight())
+	headerHeight := m.getHeaderHeight()
+	helpHeight := lipgloss.Height(m.renderHelp())
+	availableHeight := m.height - headerHeight - helpHeight
+	if view.GetHeight() != availableHeight {
+		t.Errorf("expected expanded worker height to be %d, got %d", availableHeight, view.GetHeight())
 	}
 }
 

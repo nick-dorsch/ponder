@@ -391,7 +391,7 @@ func runOrchestrate(args []string) error {
 
 func runWork(args []string) error {
 	workFlags := flag.NewFlagSet("work", flag.ContinueOnError)
-	concurrency := workFlags.Int("concurrency", 3, "Maximum number of concurrent workers")
+	concurrency := workFlags.Int("concurrency", 4, "Maximum number of concurrent workers")
 	model := workFlags.String("model", "opencode/gemini-3-flash", "Model to use for workers")
 	interval := workFlags.Duration("interval", 5*time.Second, "Polling interval when idle (0 to exit)")
 	enableWeb := workFlags.Bool("web", true, "Enable web UI")
