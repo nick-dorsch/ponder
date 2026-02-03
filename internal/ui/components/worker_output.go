@@ -24,7 +24,7 @@ var (
 				Foreground(lipgloss.Color("241"))
 )
 
-// WorkerOutput is a component that renders worker output in a viewport.
+// WorkerOutput renders worker output in a viewport.
 type WorkerOutput struct {
 	viewport viewport.Model
 	output   strings.Builder
@@ -33,7 +33,7 @@ type WorkerOutput struct {
 	height   int
 }
 
-// NewWorkerOutput creates a new WorkerOutput component.
+// NewWorkerOutput creates a new WorkerOutput.
 func NewWorkerOutput(width, height int) *WorkerOutput {
 	return &WorkerOutput{
 		viewport: viewport.New(width, height),
@@ -42,7 +42,6 @@ func NewWorkerOutput(width, height int) *WorkerOutput {
 	}
 }
 
-// SetSize updates the size of the viewport.
 func (o *WorkerOutput) SetSize(width, height int) {
 	o.width = width
 	o.height = height
@@ -61,26 +60,22 @@ func (o *WorkerOutput) SetSize(width, height int) {
 	o.updateContent()
 }
 
-// Append adds raw output to the viewport.
 func (o *WorkerOutput) Append(content string) {
 	o.output.WriteString(content)
 	o.updateContent()
 }
 
-// AppendStatus adds a styled status message to the viewport.
 func (o *WorkerOutput) AppendStatus(status string) {
 	o.output.WriteString(statusStyle.Render(fmt.Sprintf("\n--- %s ---\n", status)))
 	o.updateContent()
 }
 
-// SetContent sets the entire content of the viewport.
 func (o *WorkerOutput) SetContent(content string) {
 	o.output.Reset()
 	o.output.WriteString(content)
 	o.updateContent()
 }
 
-// Reset clears the output.
 func (o *WorkerOutput) Reset() {
 	o.output.Reset()
 	o.updateContent()
@@ -98,14 +93,12 @@ func (o *WorkerOutput) updateContent() {
 	o.viewport.GotoBottom()
 }
 
-// Update handles messages for the viewport.
 func (o *WorkerOutput) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	o.viewport, cmd = o.viewport.Update(msg)
 	return cmd
 }
 
-// View renders the viewport.
 func (o *WorkerOutput) View() string {
 	if !o.ready {
 		return ""
@@ -115,11 +108,9 @@ func (o *WorkerOutput) View() string {
 		return o.viewport.View()
 	}
 
-	// Calculate scrollbar
 	h := o.viewport.Height
 	percent := o.viewport.ScrollPercent()
 
-	// Calculate handle position
 	handlePos := int(float64(h-1) * percent)
 
 	var sb strings.Builder
@@ -137,17 +128,14 @@ func (o *WorkerOutput) View() string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, o.viewport.View(), sb.String())
 }
 
-// GotoBottom scrolls the viewport to the bottom.
 func (o *WorkerOutput) GotoBottom() {
 	o.viewport.GotoBottom()
 }
 
-// Height returns the current height of the viewport.
 func (o *WorkerOutput) Height() int {
 	return o.viewport.Height
 }
 
-// SetHeight sets the height of the viewport.
 func (o *WorkerOutput) SetHeight(height int) {
 	o.viewport.Height = height
 }

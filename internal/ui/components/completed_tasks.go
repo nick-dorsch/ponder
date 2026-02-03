@@ -35,13 +35,12 @@ var (
 				Padding(0, 1)
 )
 
-// TaskResult represents the result of a completed task.
 type TaskResult struct {
 	Name    string
 	Success bool
 }
 
-// CompletedTasks is a component that renders a list of completed tasks.
+// CompletedTasks renders a list of completed tasks.
 type CompletedTasks struct {
 	Succeeded []TaskResult
 	Failed    []TaskResult
@@ -49,47 +48,38 @@ type CompletedTasks struct {
 	Title     string
 
 	// Compatibility fields
-	History       []TaskResult
-	SuccessStatus string
-	FailureStatus string
-	Compact       bool
+	History []TaskResult
 }
 
 // NewCompletedTasks creates a new CompletedTasks component.
 func NewCompletedTasks(width int) *CompletedTasks {
 	return &CompletedTasks{
-		Succeeded:     make([]TaskResult, 0),
-		Failed:        make([]TaskResult, 0),
-		Width:         width,
-		Title:         "Completed Tasks",
-		SuccessStatus: "COMPLETED",
-		FailureStatus: "FAILED",
-		Compact:       true,
+		Succeeded: make([]TaskResult, 0),
+		Failed:    make([]TaskResult, 0),
+		Width:     width,
+		Title:     "Completed Tasks",
 	}
 }
 
-// Add adds a task result to the history, keeping only the last n results per list.
+// Add adds a task result to the history.
 func (c *CompletedTasks) Add(res TaskResult, limit int) {
 	if res.Success {
-		c.Succeeded = append(c.Succeeded, res)
-		if limit > 0 && len(c.Succeeded) > limit {
-			c.Succeeded = c.Succeeded[len(c.Succeeded)-limit:]
-		}
+		c.Succeeded = c.appendWithLimit(c.Succeeded, res, limit)
 	} else {
-		c.Failed = append(c.Failed, res)
-		if limit > 0 && len(c.Failed) > limit {
-			c.Failed = c.Failed[len(c.Failed)-limit:]
-		}
+		c.Failed = c.appendWithLimit(c.Failed, res, limit)
 	}
 
-	// Maintain History for compatibility
-	c.History = append(c.History, res)
-	if limit > 0 && len(c.History) > limit {
-		c.History = c.History[len(c.History)-limit:]
-	}
+	c.History = c.appendWithLimit(c.History, res, limit)
 }
 
-// View renders the completed tasks.
+func (c *CompletedTasks) appendWithLimit(slice []TaskResult, res TaskResult, limit int) []TaskResult {
+	slice = append(slice, res)
+	if limit > 0 && len(slice) > limit {
+		return slice[len(slice)-limit:]
+	}
+	return slice
+}
+
 func (c *CompletedTasks) View() string {
 	var boxes []string
 
@@ -118,18 +108,13 @@ func (c *CompletedTasks) View() string {
 func (c *CompletedTasks) renderBox(title string, tasks []TaskResult, style lipgloss.Style, icon string) string {
 	boxWidth := c.Width
 
-	// Sub-title
 	subTitle := subTitleStyle.Foreground(style.GetForeground()).Render(title)
 
-	// Width for content (minus borders and padding)
-	// NormalBorder takes 1 col on each side = 2
-	// Padding takes 1 col on each side = 2
 	innerWidth := boxWidth - 4
 	if innerWidth < 0 {
 		innerWidth = 0
 	}
 
-	// Word-level wrapping for tasks
 	var lines []string
 	nameWidth := innerWidth - 2
 	if nameWidth < 0 {

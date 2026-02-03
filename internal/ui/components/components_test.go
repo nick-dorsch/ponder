@@ -35,13 +35,11 @@ func TestCompletedTasks(t *testing.T) {
 
 func TestCompletedTasksChronologicalOrder(t *testing.T) {
 	c := NewCompletedTasks(40)
-	// Add tasks in order
 	c.Add(TaskResult{Name: "oldest", Success: true}, 10)
 	c.Add(TaskResult{Name: "middle", Success: true}, 10)
 	c.Add(TaskResult{Name: "newest", Success: true}, 10)
 
 	view := c.View()
-	// Check if they appear in chronological order (oldest first)
 	oldestIdx := strings.Index(view, "oldest")
 	middleIdx := strings.Index(view, "middle")
 	newestIdx := strings.Index(view, "newest")
@@ -73,7 +71,7 @@ func TestCompletedTasksEmptyState(t *testing.T) {
 
 func TestWorkerOutput(t *testing.T) {
 	o := NewWorkerOutput(80, 20)
-	o.SetSize(80, 20) // Ensure it's ready
+	o.SetSize(80, 20)
 
 	o.Append("hello")
 	o.AppendStatus("running")
@@ -98,14 +96,12 @@ func TestWorkerOutputScrollbar(t *testing.T) {
 	o := NewWorkerOutput(width, height)
 	o.SetSize(width, height)
 
-	// Add enough content to trigger scrollbar
 	for i := 0; i < 10; i++ {
 		o.Append("line\n")
 	}
 
 	view := o.View()
 
-	// Check if scrollbar characters are present
 	if !strings.Contains(view, "┃") {
 		t.Errorf("expected view to contain scrollbar handle '┃'")
 	}
@@ -133,12 +129,9 @@ func TestWorkerOutputWrapping(t *testing.T) {
 	o := NewWorkerOutput(width, height)
 	o.SetSize(width, height)
 
-	// Long line that should wrap
 	o.Append("this is a very long line that should definitely wrap because it exceeds the width of twenty characters")
 
 	view := o.View()
-	// The viewport view will contain the wrapped text.
-	// Since width is 20, "this is a very long line" (24 chars) should wrap.
 
 	lines := strings.Split(strings.TrimSpace(view), "\n")
 	if len(lines) <= 1 {
@@ -146,8 +139,6 @@ func TestWorkerOutputWrapping(t *testing.T) {
 	}
 
 	for i, line := range lines {
-		// Strip ANSI codes if necessary, but here we can just check length
-		// lipgloss.Width() can be used to check visual width
 		w := lipgloss.Width(line)
 		if w > width {
 			t.Errorf("line %d is too wide: %d > %d. Content: %q", i, w, width, line)
@@ -166,9 +157,7 @@ func TestWorkerOutputReWrappingOnResize(t *testing.T) {
 	view1 := o.View()
 	lines1 := strings.Split(strings.TrimSpace(view1), "\n")
 
-	// Now resize to smaller width
 	o.SetSize(20, 10)
-	// Just check the number of lines in the viewport content
 	lines2 := strings.Split(strings.TrimSpace(o.viewport.View()), "\n")
 
 	if len(lines2) <= len(lines1) {

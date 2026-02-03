@@ -57,9 +57,6 @@ type OrchestratorModel struct {
 func NewOrchestratorModel(orch *Orchestrator) *OrchestratorModel {
 	comp := components.NewCompletedTasks(0)
 	comp.Title = "Completed Tasks"
-	comp.SuccessStatus = "✓"
-	comp.FailureStatus = "✗"
-	comp.Compact = false
 
 	workerViews := make(map[int]*WorkerView)
 	workerOrder := make([]int, 0)
