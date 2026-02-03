@@ -13,13 +13,11 @@ import (
 	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
-// TaskStore defines the interface for database operations required by the worker.
 type TaskStore interface {
 	GetAvailableTasks(ctx context.Context) ([]*models.Task, error)
 	UpdateTaskStatus(ctx context.Context, id string, status models.TaskStatus, summary *string) error
 }
 
-// Worker represents the background task processor.
 type Worker struct {
 	store         TaskStore
 	interval      time.Duration
@@ -30,7 +28,6 @@ type Worker struct {
 	cmdFactory    func(ctx context.Context, name string, arg ...string) *exec.Cmd
 }
 
-// NewWorker creates a new Worker instance.
 func NewWorker(store TaskStore, interval time.Duration, model string, maxIterations int) *Worker {
 	if interval == 0 {
 		interval = 5 * time.Second
@@ -44,7 +41,6 @@ func NewWorker(store TaskStore, interval time.Duration, model string, maxIterati
 	}
 }
 
-// Run starts the orchestration loop.
 func (w *Worker) Run(ctx context.Context) error {
 	if w.NoTUI {
 		return w.workerLoop(ctx)
@@ -164,7 +160,6 @@ func (w *Worker) processNextTask(ctx context.Context) (bool, *models.Task, error
 
 	prompt := w.constructPrompt(task)
 
-	// Mark task as in_progress before agent launch
 	if err := w.store.UpdateTaskStatus(ctx, task.ID, models.TaskStatusInProgress, nil); err != nil {
 		return true, task, fmt.Errorf("failed to set task %s to in_progress: %w", task.Name, err)
 	}
@@ -177,8 +172,6 @@ func (w *Worker) processNextTask(ctx context.Context) (bool, *models.Task, error
 		cmd.Stdout = writer
 		cmd.Stderr = writer
 	} else {
-		// Use a simple writer that prints to stdout in NoTUI mode
-		// Actually cmd.Stdout = os.Stdout is fine, but let's be consistent
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}

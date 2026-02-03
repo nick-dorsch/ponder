@@ -105,7 +105,6 @@ func (m *TUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.recalculateLayout()
 			}
 		} else if msg.Type == tea.MouseWheelUp || msg.Type == tea.MouseWheelDown {
-			// History is no longer scrollable, scroll commands are handled by Output
 		}
 
 	case tea.WindowSizeMsg:
@@ -162,20 +161,17 @@ func (m *TUIModel) recalculateLayout() {
 
 	footerHeight := lipgloss.Height(m.helpView())
 
-	// Calculate available height for viewport.
 	extraLines := 3
 	if m.historyHeight > 0 {
 		extraLines = 5
 	}
 	occupied := m.headerHeight + m.promptHeight + m.historyHeight + footerHeight + extraLines
 
-	// Viewport height should be 20 lines in windowed mode, or full height in expanded mode.
 	vHeight := 20
 	if m.expanded {
 		vHeight = m.height - occupied
 	}
 
-	// Ensure we don't exceed terminal height
 	if occupied+vHeight > m.height {
 		vHeight = m.height - occupied
 	}

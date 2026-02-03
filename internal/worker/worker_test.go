@@ -56,11 +56,6 @@ func TestWorker_Iterations(t *testing.T) {
 		},
 	}
 
-	// We use a model name that will definitely fail if executed,
-	// but we want to test iteration logic.
-	// Since we can't easily mock exec.Command without refactoring,
-	// and we don't want to actually run opencode, we'll just test
-	// that it calls GetAvailableTasks.
 	w := NewWorker(mock, 1*time.Millisecond, "mock-model", 2)
 	w.NoTUI = true
 
@@ -69,7 +64,6 @@ func TestWorker_Iterations(t *testing.T) {
 
 	err := w.Run(ctx)
 	if err != nil && err != context.DeadlineExceeded {
-		// It might fail because 'opencode' is not in path, but we want to see it try.
 		if !strings.Contains(err.Error(), "executable file not found") && !strings.Contains(err.Error(), "opencode failed") {
 			t.Logf("Expected opencode to fail or not be found, got: %v", err)
 		}
@@ -81,7 +75,6 @@ func TestWorker_Iterations(t *testing.T) {
 	if mock.statusCalls == 0 {
 		t.Error("expected at least one call to UpdateTaskStatus")
 	}
-	// Note: If opencode fails, the worker is guaranteed to reset the status to pending.
 }
 
 func TestWorker_ResetOnFailure(t *testing.T) {
@@ -93,9 +86,7 @@ func TestWorker_ResetOnFailure(t *testing.T) {
 
 	w := NewWorker(mock, 1*time.Millisecond, "mock-model", 1)
 	w.NoTUI = true
-	// Mock cmdFactory to always fail
 	w.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
-		// Using a command that exists but returns non-zero
 		return exec.CommandContext(ctx, "ls", "/non-existent-directory-ponder-test")
 	}
 
@@ -158,7 +149,6 @@ func TestWorker_IterationCount(t *testing.T) {
 	w := NewWorker(mock, 1*time.Millisecond, "mock-model", maxIter)
 	w.NoTUI = true
 
-	// Mock cmdFactory to do nothing successfully
 	w.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
 		return exec.CommandContext(ctx, "true")
 	}
