@@ -13,18 +13,14 @@ import (
 	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
-// EnableAutoSnapshot sets up a hook that automatically exports a snapshot
-// to the given path after every successful write operation.
+// EnableAutoSnapshot automatically exports a snapshot after every write.
 func (db *DB) EnableAutoSnapshot(path string) {
 	db.SetOnChange(func(ctx context.Context) {
-		// We ignore the error here as hooks are best-effort in this context,
-		// and we don't want to fail the original write operation if the export fails.
+		// Ignore error as hooks are best-effort.
 		_ = db.ExportSnapshot(ctx, path)
 	})
 }
 
-// ExportSnapshot queries the v_snapshot_jsonl_lines view and writes the results
-// to the given path atomically using a temporary file.
 func (db *DB) ExportSnapshot(ctx context.Context, path string) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -85,8 +81,6 @@ func (db *DB) ExportSnapshot(ctx context.Context, path string) error {
 	return nil
 }
 
-// ImportSnapshot reads a JSONL snapshot and populates the database.
-// It uses a transaction and maintains referential integrity by mapping names to new IDs.
 func (db *DB) ImportSnapshot(ctx context.Context, path string) error {
 	file, err := os.Open(path)
 	if err != nil {

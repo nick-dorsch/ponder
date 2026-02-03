@@ -8,7 +8,6 @@ import (
 	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
-// CommitBatch applies a collection of features, tasks, and dependencies in a single transaction.
 func (db *DB) CommitBatch(ctx context.Context, sessionID string) error {
 	items := db.Staging.GetAndClear(sessionID)
 	if items == nil {

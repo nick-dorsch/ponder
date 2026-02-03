@@ -8,8 +8,6 @@ import (
 	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
-// CreateFeature inserts a new feature into the database.
-// If f.ID is empty, a new UUID (hex) is generated.
 func (db *DB) CreateFeature(ctx context.Context, f *models.Feature) error {
 	if err := db.createFeature(ctx, db.DB, f); err != nil {
 		return err
@@ -19,7 +17,6 @@ func (db *DB) CreateFeature(ctx context.Context, f *models.Feature) error {
 	return nil
 }
 
-// GetFeature retrieves a feature by its ID.
 func (db *DB) GetFeature(ctx context.Context, id string) (*models.Feature, error) {
 	query := `
 		SELECT id, name, description, specification, created_at, updated_at
@@ -40,7 +37,6 @@ func (db *DB) GetFeature(ctx context.Context, id string) (*models.Feature, error
 	return f, nil
 }
 
-// GetFeatureByName retrieves a feature by its name.
 func (db *DB) GetFeatureByName(ctx context.Context, name string) (*models.Feature, error) {
 	return db.getFeatureByName(ctx, db.DB, name)
 }
@@ -65,7 +61,6 @@ func (db *DB) getFeatureByName(ctx context.Context, exec executor, name string) 
 	return f, nil
 }
 
-// ListFeatures returns all features.
 func (db *DB) ListFeatures(ctx context.Context) ([]*models.Feature, error) {
 	query := `
 		SELECT id, name, description, specification, created_at, updated_at
@@ -97,7 +92,6 @@ func (db *DB) ListFeatures(ctx context.Context) ([]*models.Feature, error) {
 	return features, nil
 }
 
-// UpdateFeature updates an existing feature.
 func (db *DB) UpdateFeature(ctx context.Context, f *models.Feature) error {
 	query := `
 		UPDATE features
@@ -117,7 +111,6 @@ func (db *DB) UpdateFeature(ctx context.Context, f *models.Feature) error {
 	return nil
 }
 
-// DeleteFeature deletes a feature by its ID.
 func (db *DB) DeleteFeature(ctx context.Context, id string) error {
 	query := `DELETE FROM features WHERE id = ?`
 	res, err := db.ExecContext(ctx, query, id)

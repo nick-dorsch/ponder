@@ -26,22 +26,18 @@ type executor interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
-// SetOnChange sets a callback function that will be called after any successful
-// write operation to the database.
 func (db *DB) SetOnChange(fn func(ctx context.Context)) {
 	db.onChangeMu.Lock()
 	defer db.onChangeMu.Unlock()
 	db.onChange = fn
 }
 
-// DisableOnChange temporarily disables the onChange hook.
 func (db *DB) DisableOnChange() {
 	db.onChangeMu.Lock()
 	defer db.onChangeMu.Unlock()
 	db.onChangeDisabled = true
 }
 
-// EnableOnChange re-enables the onChange hook.
 func (db *DB) EnableOnChange() {
 	db.onChangeMu.Lock()
 	defer db.onChangeMu.Unlock()
@@ -59,8 +55,7 @@ func (db *DB) triggerChange(ctx context.Context) {
 	}
 }
 
-// Open opens a SQLite database at the given path, creates the directory if it doesn't exist,
-// enables WAL mode, and configures connection pooling.
+// Open opens a SQLite database at the given path.
 func Open(path string) (*DB, error) {
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
@@ -75,7 +70,7 @@ func Open(path string) (*DB, error) {
 		}
 	}
 
-	// WAL mode for better concurrency (ignored for :memory: but doesn't hurt)
+	// WAL mode for better concurrency
 	if _, err := db.Exec("PRAGMA journal_mode=WAL;"); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to enable WAL mode: %w", err)
@@ -87,9 +82,7 @@ func Open(path string) (*DB, error) {
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
-	// Connection pooling: SQLite works best with a single writer.
-	// WAL mode allows multiple readers, but for simplicity and to avoid "database is locked"
-	// we limit to 1 open connection.
+	// SQLite works best with a single writer.
 	db.SetMaxOpenConns(1)
 
 	return &DB{
@@ -98,7 +91,6 @@ func Open(path string) (*DB, error) {
 	}, nil
 }
 
-// Migrate executes the given SQL schema.
 func (db *DB) Migrate(ctx context.Context, schema string) error {
 	if _, err := db.ExecContext(ctx, schema); err != nil {
 		return fmt.Errorf("migration failed: %w", err)
@@ -107,12 +99,10 @@ func (db *DB) Migrate(ctx context.Context, schema string) error {
 	return nil
 }
 
-// Init initializes the database with the embedded schema.
 func (db *DB) Init(ctx context.Context) error {
 	return db.Migrate(ctx, embedsql.Schema)
 }
 
-// GetGraphJSON returns the entire task graph as a JSON string.
 func (db *DB) GetGraphJSON(ctx context.Context) (string, error) {
 	var json string
 	query := `SELECT graph_json FROM v_graph_json`

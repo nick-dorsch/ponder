@@ -8,8 +8,6 @@ import (
 	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
-// CreateTask inserts a new task into the database.
-// If t.ID is empty, a new UUID (hex) is generated.
 func (db *DB) CreateTask(ctx context.Context, t *models.Task) error {
 	if err := db.createTask(ctx, db.DB, t); err != nil {
 		return err
@@ -19,7 +17,6 @@ func (db *DB) CreateTask(ctx context.Context, t *models.Task) error {
 	return nil
 }
 
-// GetTask retrieves a task by its ID.
 func (db *DB) GetTask(ctx context.Context, id string) (*models.Task, error) {
 	query := `
 		SELECT t.id, t.feature_id, t.name, t.description, t.specification, t.priority, t.tests_required, 
@@ -47,7 +44,6 @@ func (db *DB) GetTask(ctx context.Context, id string) (*models.Task, error) {
 	return t, nil
 }
 
-// GetTaskByName retrieves a task by its name and feature_id.
 func (db *DB) GetTaskByName(ctx context.Context, name string, featureID string) (*models.Task, error) {
 	return db.getTaskByName(ctx, db.DB, name, featureID)
 }
@@ -79,7 +75,6 @@ func (db *DB) getTaskByName(ctx context.Context, exec executor, name string, fea
 	return t, nil
 }
 
-// ListTasks returns tasks, optionally filtered by status or feature_name.
 func (db *DB) ListTasks(ctx context.Context, status *models.TaskStatus, featureName *string) ([]*models.Task, error) {
 	query := `
 		SELECT t.id, t.feature_id, t.name, t.description, t.specification, t.priority, t.tests_required, 
@@ -137,7 +132,6 @@ func (db *DB) queryTasks(ctx context.Context, query string, args ...interface{})
 	return tasks, nil
 }
 
-// UpdateTask updates an existing task.
 func (db *DB) UpdateTask(ctx context.Context, t *models.Task) error {
 	testsRequired := 0
 	if t.TestsRequired {
@@ -164,7 +158,6 @@ func (db *DB) UpdateTask(ctx context.Context, t *models.Task) error {
 	return nil
 }
 
-// UpdateTaskStatus updates the status and completion summary of a task.
 func (db *DB) UpdateTaskStatus(ctx context.Context, id string, status models.TaskStatus, summary *string) error {
 	// Validate status transition
 	current, err := db.GetTask(ctx, id)
@@ -195,7 +188,6 @@ func (db *DB) UpdateTaskStatus(ctx context.Context, id string, status models.Tas
 	return nil
 }
 
-// DeleteTask deletes a task by its ID.
 func (db *DB) DeleteTask(ctx context.Context, id string) error {
 	query := `DELETE FROM tasks WHERE id = ?`
 	res, err := db.ExecContext(ctx, query, id)
@@ -216,7 +208,6 @@ func (db *DB) DeleteTask(ctx context.Context, id string) error {
 	return nil
 }
 
-// GetAvailableTasks returns tasks that are ready to work on (all dependencies completed).
 func (db *DB) GetAvailableTasks(ctx context.Context) ([]*models.Task, error) {
 	query := `
 		SELECT id, feature_id, name, description, specification, priority, tests_required,
@@ -228,8 +219,6 @@ func (db *DB) GetAvailableTasks(ctx context.Context) ([]*models.Task, error) {
 	return db.queryTasks(ctx, query)
 }
 
-// CountAvailableTasks returns the number of tasks that are ready to work on
-// without claiming them. This is used to determine how many workers to spawn.
 func (db *DB) CountAvailableTasks(ctx context.Context) (int, error) {
 	query := `
 		SELECT COUNT(*)
@@ -288,8 +277,6 @@ func (db *DB) ClaimNextTask(ctx context.Context) (*models.Task, error) {
 	return t, nil
 }
 
-// ResetInProgressTasks resets all tasks with status 'in_progress' to 'pending'.
-// This is typically called on startup to recover from orphaned tasks.
 func (db *DB) ResetInProgressTasks(ctx context.Context) error {
 	query := `UPDATE tasks SET status = 'pending' WHERE status = 'in_progress'`
 	_, err := db.ExecContext(ctx, query)
@@ -316,8 +303,7 @@ func validateStatusTransition(from, to models.TaskStatus) error {
 			return fmt.Errorf("invalid transition from %s to %s", from, to)
 		}
 	case models.TaskStatusCompleted:
-		// Completed tasks can maybe be moved back to in_progress if needed, but usually they are final.
-		// For now let's allow moving back to in_progress.
+		// Completed tasks can be moved back to in_progress if needed.
 		if to != models.TaskStatusInProgress {
 			return fmt.Errorf("invalid transition from %s to %s", from, to)
 		}

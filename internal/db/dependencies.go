@@ -7,7 +7,6 @@ import (
 	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
-// CreateDependency creates a dependency between two tasks.
 func (db *DB) CreateDependency(ctx context.Context, taskID, dependsOnTaskID string) error {
 	if err := db.createDependency(ctx, db.DB, taskID, dependsOnTaskID); err != nil {
 		return err
@@ -16,7 +15,6 @@ func (db *DB) CreateDependency(ctx context.Context, taskID, dependsOnTaskID stri
 	return nil
 }
 
-// DeleteDependency removes a dependency between two tasks.
 func (db *DB) DeleteDependency(ctx context.Context, taskID, dependsOnTaskID string) error {
 	query := `DELETE FROM dependencies WHERE task_id = ? AND depends_on_task_id = ?`
 	res, err := db.ExecContext(ctx, query, taskID, dependsOnTaskID)
@@ -37,7 +35,6 @@ func (db *DB) DeleteDependency(ctx context.Context, taskID, dependsOnTaskID stri
 	return nil
 }
 
-// GetDependencies returns all tasks that the given task depends on.
 func (db *DB) GetDependencies(ctx context.Context, taskID string) ([]*models.Task, error) {
 	query := `
 		SELECT t.id, t.feature_id, t.name, t.description, t.specification, t.priority, t.tests_required, 
@@ -52,7 +49,6 @@ func (db *DB) GetDependencies(ctx context.Context, taskID string) ([]*models.Tas
 	return db.queryTasks(ctx, query, taskID)
 }
 
-// GetDependents returns all tasks that depend on the given task.
 func (db *DB) GetDependents(ctx context.Context, taskID string) ([]*models.Task, error) {
 	query := `
 		SELECT t.id, t.feature_id, t.name, t.description, t.specification, t.priority, t.tests_required, 
