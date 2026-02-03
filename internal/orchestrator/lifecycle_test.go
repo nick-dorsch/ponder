@@ -11,7 +11,6 @@ import (
 )
 
 func TestLifecycleIntegration_Recovery(t *testing.T) {
-	// 1. Setup real database
 	store, err := db.Open(":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open database: %v", err)
@@ -23,7 +22,6 @@ func TestLifecycleIntegration_Recovery(t *testing.T) {
 		t.Fatalf("Failed to init database: %v", err)
 	}
 
-	// 2. Create a feature and a task
 	f := &models.Feature{
 		Name:          "Recovery Feature",
 		Description:   "Description",
@@ -45,48 +43,34 @@ func TestLifecycleIntegration_Recovery(t *testing.T) {
 		t.Fatalf("Failed to create task: %v", err)
 	}
 
-	// 3. Manually set task to in_progress (simulating crash)
-	// We use the store's UpdateTaskStatus which validates transitions,
-	// but we could also use direct SQL if we wanted to be more "manual".
-	// Since pending -> in_progress is valid, this works.
 	if err := store.UpdateTaskStatus(ctx, task.ID, models.TaskStatusInProgress, nil); err != nil {
 		t.Fatalf("Failed to set task to in_progress: %v", err)
 	}
 
-	// Verify it's actually in_progress
 	t1, _ := store.GetTask(ctx, task.ID)
 	if t1.Status != models.TaskStatusInProgress {
 		t.Fatalf("Expected status in_progress, got %s", t1.Status)
 	}
 
-	// 4. Initialize Orchestrator
 	o := NewOrchestrator(store, 1, "test-model")
-	o.minSpawnInterval = 0 // Fast spawning for test
+	o.minSpawnInterval = 0
 
-	// Track if the task was actually run
 	runCount := 0
 	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
 		runCount++
-		// Simulate the agent completing the task
 		summary := "Processed by mock"
 		_ = store.UpdateTaskStatus(ctx, task.ID, models.TaskStatusCompleted, &summary)
 		return exec.CommandContext(ctx, "true")
 	}
 
-	// 5. Start Orchestrator
-	// It should reset in_progress to pending, then pick it up and run it.
-	// We'll use a short context and expect it to finish or timeout.
 	testCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	// We'll run Start in a goroutine because it might block if there are no more tasks
-	// (though here it should exit since we didn't set PollingInterval)
 	err = o.Start(testCtx)
 	if err != nil && err != context.DeadlineExceeded && err != context.Canceled {
 		t.Fatalf("Start returned error: %v", err)
 	}
 
-	// 6. Verify task was recovered and processed
 	if runCount == 0 {
 		t.Error("Expected task to be run by orchestrator after recovery")
 	}

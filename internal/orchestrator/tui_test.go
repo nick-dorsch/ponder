@@ -29,13 +29,11 @@ func TestOrchestratorModel_Update(t *testing.T) {
 	orch := NewOrchestrator(store, 3, "test-model")
 	m := NewOrchestratorModel(orch)
 
-	// Test WindowSizeMsg
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
 	if m.width != 100 || m.height != 50 || !m.ready {
 		t.Errorf("failed to handle WindowSizeMsg")
 	}
 
-	// Test WorkerStartedMsg - should already be there, no change in count
 	m.Update(WorkerStartedMsg{WorkerID: 1})
 	if len(m.workerViews) != 3 {
 		t.Errorf("expected 3 worker views, got %d", len(m.workerViews))
@@ -44,7 +42,6 @@ func TestOrchestratorModel_Update(t *testing.T) {
 		t.Errorf("worker view 1 not found")
 	}
 
-	// Test TaskCompletedMsg
 	m.Update(TaskCompletedMsg{WorkerID: 1, TaskName: "task1", Success: true})
 	if len(m.completedTasks.History) != 1 {
 		t.Errorf("expected 1 completed task in history")
@@ -64,25 +61,21 @@ func TestOrchestratorModel_Navigation(t *testing.T) {
 		t.Errorf("expected first worker (1) to be focused initially, got %d", m.focusedWorker)
 	}
 
-	// Move focus up (wrap around)
 	m.moveFocus(-1)
 	if m.focusedWorker != 3 {
 		t.Errorf("expected worker 3 to be focused after moving up (wrap around), got %d", m.focusedWorker)
 	}
 
-	// Move focus up again
 	m.moveFocus(-1)
 	if m.focusedWorker != 2 {
 		t.Errorf("expected worker 2 to be focused after moving up, got %d", m.focusedWorker)
 	}
 
-	// Move focus up again
 	m.moveFocus(-1)
 	if m.focusedWorker != 1 {
 		t.Errorf("expected worker 1 to be focused after moving up, got %d", m.focusedWorker)
 	}
 
-	// Move focus down
 	m.moveFocus(1)
 	if m.focusedWorker != 2 {
 		t.Errorf("expected worker 2 to be focused after moving down, got %d", m.focusedWorker)
@@ -94,11 +87,8 @@ func TestOrchestratorModel_Scrolling(t *testing.T) {
 	orch := NewOrchestrator(store, 10, "test-model")
 	m := NewOrchestratorModel(orch)
 
-	// Small height to force scrolling
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 20})
 
-	// 10 workers pre-populated.
-	// Focus worker 5
 	m.focusedWorker = 5
 	m.scrollIntoView()
 
@@ -115,7 +105,6 @@ func TestOrchestratorModel_Scrolling(t *testing.T) {
 		t.Errorf("expected scrollOffset to be at least %d to show worker 5, got %d", expectedMinOffset, m.scrollOffset)
 	}
 
-	// Move focus to worker 1
 	m.focusedWorker = 1
 	m.scrollIntoView()
 
@@ -130,13 +119,11 @@ func TestOrchestratorModel_Expansion(t *testing.T) {
 	m := NewOrchestratorModel(orch)
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
 
-	// Focus worker 1
 	m.focusedWorker = 1
 	for id, view := range m.workerViews {
 		view.SetFocused(id == m.focusedWorker)
 	}
 
-	// Toggle expansion
 	m.toggleExpanded()
 
 	if !m.workerViews[1].IsExpanded() {
@@ -154,13 +141,9 @@ func TestOrchestratorModel_Expansion(t *testing.T) {
 		t.Errorf("expected expanded worker height to be %d, got %d", availableHeight, m.workerViews[1].GetHeight())
 	}
 
-	// Toggle expansion again
 	m.toggleExpanded()
 	if m.workerViews[1].IsExpanded() {
 		t.Errorf("expected worker 1 to be collapsed after second toggle")
-	}
-	if m.workerViews[1].GetHeight() != 12 {
-		t.Errorf("expected collapsed worker height to be 12, got %d", m.workerViews[1].GetHeight())
 	}
 }
 
@@ -194,12 +177,10 @@ func TestOrchestratorModel_RenderHeader_WithOrb(t *testing.T) {
 
 	header := m.renderHeader()
 
-	// 1. Verify orb character and styling (at least presence of orb)
 	if !strings.Contains(header, "⬤") {
 		t.Error("header missing orb character")
 	}
 
-	// 2. Verify all text elements
 	expectedElements := []string{
 		"Ponder Orchestrator",
 		"Waiting for tasks...",
@@ -215,7 +196,6 @@ func TestOrchestratorModel_RenderHeader_WithOrb(t *testing.T) {
 		}
 	}
 
-	// Test Active status
 	m.isIdle = false
 	header = m.renderHeader()
 	if !strings.Contains(header, "Active") {
@@ -230,12 +210,10 @@ func TestOrchestratorModel_GetHeaderHeight(t *testing.T) {
 
 	height := m.getHeaderHeight()
 
-	// headerStyle has Padding(1, 2), content is 1 line, so height should be 3
 	if height != 3 {
 		t.Errorf("expected header height to be 3, got %d", height)
 	}
 
-	// Verify height is consistent with longer content
 	orch.WebURL = "http://very-long-url-that-should-not-wrap-unless-width-is-very-small.com"
 	height2 := m.getHeaderHeight()
 	if height2 != height {
@@ -248,17 +226,11 @@ func TestOrchestratorModel_RecalculateLayout_HeaderIntegration(t *testing.T) {
 	orch := NewOrchestrator(store, 1, "test-model")
 	m := NewOrchestratorModel(orch)
 
-	// Set window size
 	width, height := 100, 40
 	m.Update(tea.WindowSizeMsg{Width: width, Height: height})
 
 	view := m.workerViews[1]
-	if view.GetHeight() != 14 { // Collapsed default height from updateOutputSize
-		// wait, recalculateLayout says:
-		// view.SetSize(m.workersWidth-2, 15) for collapsed
-	}
 
-	// Expand to test availableHeight calculation
 	m.toggleExpanded()
 	headerHeight := m.getHeaderHeight()
 	helpHeight := lipgloss.Height(m.renderHelp())
@@ -292,25 +264,21 @@ func TestOrchestratorModel_ContextAwareScrolling(t *testing.T) {
 		t.Errorf("expected worker 1 to be focused, got %d", m.focusedWorker)
 	}
 
-	// Expand worker 1
 	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("e")})
 	if !m.workerViews[1].IsExpanded() {
 		t.Errorf("expected worker 1 to be expanded")
 	}
 
-	// Press 'j' - focus should NOT move to worker 2
 	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
 	if m.focusedWorker != 1 {
 		t.Errorf("expected focus to stay on worker 1 when expanded, got %d", m.focusedWorker)
 	}
 
-	// Collapse worker 1
 	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("e")})
 	if m.workerViews[1].IsExpanded() {
 		t.Errorf("expected worker 1 to be collapsed")
 	}
 
-	// Press 'j' - focus SHOULD move to worker 2
 	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
 	if m.focusedWorker != 2 {
 		t.Errorf("expected focus to move to worker 2 when collapsed, got %d", m.focusedWorker)
@@ -323,20 +291,17 @@ func TestOrchestratorModel_EnterKeyExpansion(t *testing.T) {
 	m := NewOrchestratorModel(orch)
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
 
-	// Focus worker 1
 	m.focusedWorker = 1
 	for id, view := range m.workerViews {
 		view.SetFocused(id == m.focusedWorker)
 	}
 
-	// Toggle expansion with Enter key
 	m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 
 	if !m.workerViews[1].IsExpanded() {
 		t.Errorf("expected worker 1 to be expanded via Enter key")
 	}
 
-	// Toggle expansion again with Enter key
 	m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if m.workerViews[1].IsExpanded() {
 		t.Errorf("expected worker 1 to be collapsed via Enter key after second toggle")

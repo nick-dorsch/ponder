@@ -12,7 +12,6 @@ import (
 	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
-// mockTaskStore is a mock implementation of TaskStore for testing.
 type mockTaskStore struct {
 	mu            sync.Mutex
 	tasks         []*models.Task
@@ -51,7 +50,6 @@ func (m *mockTaskStore) ClaimNextTask(ctx context.Context) (*models.Task, error)
 	m.nextTaskIndex++
 	m.claimed[task.ID] = true
 
-	// Update status to in_progress
 	task.Status = models.TaskStatusInProgress
 	m.statusUpdates = append(m.statusUpdates, statusUpdate{id: task.ID, status: models.TaskStatusInProgress})
 
@@ -68,7 +66,6 @@ func (m *mockTaskStore) UpdateTaskStatus(ctx context.Context, id string, status 
 
 	m.statusUpdates = append(m.statusUpdates, statusUpdate{id: id, status: status})
 
-	// Update the task status in the list
 	for _, task := range m.tasks {
 		if task.ID == id {
 			task.Status = status
@@ -134,7 +131,6 @@ func (m *mockTaskStore) addTask(id, name string, priority int) *models.Task {
 func TestNewOrchestrator(t *testing.T) {
 	store := newMockTaskStore()
 
-	// Test with valid parameters
 	o := NewOrchestrator(store, 3, "test-model")
 	if o.maxWorkers != 3 {
 		t.Errorf("expected maxWorkers=3, got %d", o.maxWorkers)
@@ -143,7 +139,6 @@ func TestNewOrchestrator(t *testing.T) {
 		t.Errorf("expected model='test-model', got %s", o.model)
 	}
 
-	// Test with zero maxWorkers (should default to 3)
 	o = NewOrchestrator(store, 0, "")
 	if o.maxWorkers != 3 {
 		t.Errorf("expected maxWorkers=3 (default), got %d", o.maxWorkers)
@@ -158,7 +153,6 @@ func TestOrchestrator_SingleWorker(t *testing.T) {
 	store.addTask("1", "task1", 1)
 
 	o := NewOrchestrator(store, 1, "test-model")
-	// Mock command factory to simulate success
 	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
 		return exec.CommandContext(ctx, "true")
 	}
@@ -171,13 +165,10 @@ func TestOrchestrator_SingleWorker(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Verify task was claimed
 	if !store.claimed["1"] {
 		t.Error("expected task to be claimed")
 	}
 
-	// Verify status was updated to in_progress then pending (since we reset on completion for now)
-	// Actually, since we're mocking with "true", it should complete successfully
 	if len(store.statusUpdates) < 1 {
 		t.Errorf("expected at least 1 status update, got %d", len(store.statusUpdates))
 	}
@@ -190,7 +181,6 @@ func TestOrchestrator_MultipleWorkers(t *testing.T) {
 	store.addTask("3", "task3", 1)
 
 	o := NewOrchestrator(store, 3, "test-model")
-	// Mock command factory to simulate success with a small delay
 	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
 		return exec.CommandContext(ctx, "true")
 	}
@@ -203,14 +193,12 @@ func TestOrchestrator_MultipleWorkers(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Verify all tasks were claimed
 	for _, id := range []string{"1", "2", "3"} {
 		if !store.claimed[id] {
 			t.Errorf("expected task %s to be claimed", id)
 		}
 	}
 
-	// Verify correct number of status updates (at least 3 for in_progress)
 	inProgressCount := 0
 	for _, update := range store.statusUpdates {
 		if update.status == models.TaskStatusInProgress {
@@ -229,7 +217,6 @@ func TestOrchestrator_ConcurrencyLimit(t *testing.T) {
 	store.addTask("3", "task3", 1)
 	store.addTask("4", "task4", 1)
 
-	// Set maxWorkers to 2
 	o := NewOrchestrator(store, 2, "test-model")
 	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
 		return exec.CommandContext(ctx, "true")
@@ -243,7 +230,6 @@ func TestOrchestrator_ConcurrencyLimit(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// All tasks should be completed
 	total, completed := o.GetStats()
 	if total != 4 {
 		t.Errorf("expected total=4, got %d", total)
@@ -258,7 +244,6 @@ func TestOrchestrator_TaskFailureReset(t *testing.T) {
 	store.addTask("1", "task1", 1)
 
 	o := NewOrchestrator(store, 1, "test-model")
-	// Mock command factory to simulate failure
 	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
 		return exec.CommandContext(ctx, "false")
 	}
@@ -271,12 +256,10 @@ func TestOrchestrator_TaskFailureReset(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Verify task was claimed
 	if !store.claimed["1"] {
 		t.Error("expected task to be claimed")
 	}
 
-	// Verify task was reset to pending after failure
 	store.mu.Lock()
 	var pendingCount int
 	for _, update := range store.statusUpdates {
@@ -296,16 +279,13 @@ func TestOrchestrator_Stop(t *testing.T) {
 	store.addTask("1", "task1", 1)
 
 	o := NewOrchestrator(store, 1, "test-model")
-	// Use a command that respects context cancellation
 	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
-		// This command blocks until context is cancelled
 		return exec.CommandContext(ctx, "sh", "-c", "while true; do sleep 0.1; done")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Start orchestrator in a goroutine
 	var startErr error
 	var startDone = make(chan struct{})
 	go func() {
@@ -313,16 +293,12 @@ func TestOrchestrator_Stop(t *testing.T) {
 		close(startDone)
 	}()
 
-	// Let it start a worker
 	time.Sleep(200 * time.Millisecond)
 
-	// Stop the orchestrator
 	o.Stop()
 
-	// Wait for Start to return
 	select {
 	case <-startDone:
-		// Good
 	case <-time.After(3 * time.Second):
 		t.Fatal("timeout waiting for Start to return")
 	}
@@ -338,8 +314,7 @@ func TestOrchestrator_GracefulShutdownReset(t *testing.T) {
 	store.addTask("2", "task2", 1)
 
 	o := NewOrchestrator(store, 2, "test-model")
-	o.minSpawnInterval = 0 // Disable rate limiting for test
-	// Use a command that blocks so workers are active when we stop
+	o.minSpawnInterval = 0
 	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
 		return exec.CommandContext(ctx, "sleep", "10")
 	}
@@ -347,34 +322,27 @@ func TestOrchestrator_GracefulShutdownReset(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Start orchestrator in a goroutine
 	startDone := make(chan struct{})
 	go func() {
 		_ = o.Start(ctx)
 		close(startDone)
 	}()
 
-	// Let it start workers
 	time.Sleep(200 * time.Millisecond)
 
-	// Verify workers are active
 	active := o.GetActiveWorkers()
 	if len(active) == 0 {
 		t.Fatal("expected active workers")
 	}
 
-	// Stop the orchestrator
 	o.Stop()
 
-	// Wait for Start to return
 	select {
 	case <-startDone:
-		// Good
 	case <-time.After(7 * time.Second):
 		t.Fatal("timeout waiting for Start to return")
 	}
 
-	// Verify tasks were reset to pending
 	store.mu.Lock()
 	resetMap := make(map[string]bool)
 	for _, update := range store.statusUpdates {
@@ -401,14 +369,12 @@ func TestOrchestrator_Messages(t *testing.T) {
 		return exec.CommandContext(ctx, "echo", "test output")
 	}
 
-	// Collect messages
 	var messages []interface{}
 	var mu sync.Mutex
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Start a goroutine to collect messages
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -441,7 +407,6 @@ func TestOrchestrator_Messages(t *testing.T) {
 		t.Error("expected to receive messages")
 	}
 
-	// Check for expected message types
 	var hasWorkerStarted, hasTaskStarted, hasCompleted bool
 	mu.Lock()
 	for _, msg := range messages {
@@ -450,8 +415,6 @@ func TestOrchestrator_Messages(t *testing.T) {
 			hasWorkerStarted = true
 		case TaskStartedMsg:
 			hasTaskStarted = true
-		case OutputMsg:
-			// Output is optional
 		case TaskCompletedMsg:
 			hasCompleted = true
 		}
@@ -477,14 +440,13 @@ func TestOrchestrator_ChannelClosure(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // Cancel immediately
+	cancel()
 
 	err := o.Start(ctx)
 	if err != nil && err != context.Canceled {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Channel should be closed
 	select {
 	case _, ok := <-o.Messages():
 		if ok {
@@ -501,7 +463,6 @@ func TestOrchestrator_GetActiveWorkers(t *testing.T) {
 	store.addTask("2", "task2", 1)
 
 	o := NewOrchestrator(store, 2, "test-model")
-	// Use a command that takes time so workers stay active
 	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
 		return exec.CommandContext(ctx, "sleep", "0.5")
 	}
@@ -509,13 +470,9 @@ func TestOrchestrator_GetActiveWorkers(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Check active workers during execution
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		active := o.GetActiveWorkers()
-		if len(active) == 0 {
-			t.Log("No active workers found (they might have completed quickly)")
-		}
+		o.GetActiveWorkers()
 	}()
 
 	err := o.Start(ctx)
@@ -523,7 +480,6 @@ func TestOrchestrator_GetActiveWorkers(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// After completion, should have no active workers
 	active := o.GetActiveWorkers()
 	if len(active) != 0 {
 		t.Errorf("expected 0 active workers after completion, got %d", len(active))
@@ -559,10 +515,9 @@ func TestOrchestrator_GetStats(t *testing.T) {
 
 func TestOrchestrator_NoTasks(t *testing.T) {
 	store := newMockTaskStore()
-	// No tasks added
 
 	o := NewOrchestrator(store, 3, "test-model")
-	o.PollingInterval = 0 // Ensure it exits
+	o.PollingInterval = 0
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -575,7 +530,6 @@ func TestOrchestrator_NoTasks(t *testing.T) {
 		t.Errorf("expected no error with no tasks, got %v", err)
 	}
 
-	// Should return quickly when no tasks
 	if duration > 1*time.Second {
 		t.Errorf("expected quick return with no tasks, took %v", duration)
 	}
@@ -583,7 +537,6 @@ func TestOrchestrator_NoTasks(t *testing.T) {
 
 func TestOrchestrator_Polling(t *testing.T) {
 	store := newMockTaskStore()
-	// No tasks initially
 
 	o := NewOrchestrator(store, 1, "test-model")
 	o.PollingInterval = 100 * time.Millisecond
@@ -594,16 +547,13 @@ func TestOrchestrator_Polling(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Start orchestrator
 	errChan := make(chan error, 1)
 	go func() {
 		errChan <- o.Start(ctx)
 	}()
 
-	// Wait a bit to ensure it's polling
 	time.Sleep(200 * time.Millisecond)
 
-	// Check if it's idle
 	o.idleMu.Lock()
 	isIdle := o.isIdle
 	o.idleMu.Unlock()
@@ -611,18 +561,14 @@ func TestOrchestrator_Polling(t *testing.T) {
 		t.Error("expected orchestrator to be idle")
 	}
 
-	// Add a task now
 	store.addTask("1", "task1", 1)
 
-	// Wait for orchestrator to pick it up
 	time.Sleep(500 * time.Millisecond)
 
-	// Verify task was claimed
 	if !store.claimed["1"] {
 		t.Error("expected task to be claimed while polling")
 	}
 
-	// Stop orchestrator
 	cancel()
 	err := <-errChan
 	if err != nil && err != context.Canceled {
@@ -635,7 +581,6 @@ func TestOrchestrator_ShutdownOptimization(t *testing.T) {
 	store.addTask("1", "task1", 1)
 
 	o := NewOrchestrator(store, 1, "test-model")
-	// Use a command that blocks
 	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
 		return exec.CommandContext(ctx, "sleep", "10")
 	}
@@ -649,21 +594,16 @@ func TestOrchestrator_ShutdownOptimization(t *testing.T) {
 		close(startDone)
 	}()
 
-	// Let it start worker
 	time.Sleep(200 * time.Millisecond)
 
-	// Stop the orchestrator
 	o.Stop()
 
-	// Wait for Start to return
 	select {
 	case <-startDone:
-		// Good
 	case <-time.After(5 * time.Second):
 		t.Fatal("timeout waiting for Start to return")
 	}
 
-	// Verify DisableOnChange was called
 	store.mu.Lock()
 	disabled := store.disableCalled
 	resetDone := false

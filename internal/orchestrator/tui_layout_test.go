@@ -17,14 +17,12 @@ func TestOrchestratorModel_WidthFitting(t *testing.T) {
 	for _, width := range widths {
 		m.Update(tea.WindowSizeMsg{Width: width, Height: 40})
 
-		// Test collapsed
 		checkWidth(t, m.View(), width, "collapsed")
 
-		// Test expanded
 		m.focusedWorker = 1
 		m.toggleExpanded()
 		checkWidth(t, m.View(), width, "expanded")
-		m.toggleExpanded() // collapse back
+		m.toggleExpanded()
 	}
 }
 
