@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/nick-dorsch/ponder/internal/db"
-	"github.com/nick-dorsch/ponder/pkg/models"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/nick-dorsch/ponder/internal/db"
+	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
-// NewServer creates a new MCP server.
 func NewServer(database *db.DB) *server.MCPServer {
 	s := server.NewMCPServer("Ponder", "0.1.0")
 
@@ -157,7 +156,6 @@ func NewServer(database *db.DB) *server.MCPServer {
 	return s
 }
 
-// Serve starts the MCP server on stdio.
 func Serve(s *server.MCPServer) error {
 	return server.ServeStdio(s)
 }

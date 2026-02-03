@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nick-dorsch/ponder/internal/db"
-	"github.com/nick-dorsch/ponder/pkg/models"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/nick-dorsch/ponder/internal/db"
+	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
 func TestServerInitialization(t *testing.T) {
@@ -40,7 +40,6 @@ func TestServerInitialization(t *testing.T) {
 		errChan <- stdio.Listen(ctx, r, stdout)
 	}()
 
-	// Send initialize request
 	initReq := mcp.InitializeRequest{}
 	initReq.Method = "initialize"
 	initReq.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
@@ -49,8 +48,6 @@ func TestServerInitialization(t *testing.T) {
 		Version: "1.0.0",
 	}
 
-	// Use a map for the raw JSON-RPC message because mcp.InitializeRequest
-	// doesn't have the "jsonrpc" and "id" fields in the way we want for manual writing.
 	rawReq := map[string]interface{}{
 		"jsonrpc": "2.0",
 		"id":      1,
@@ -65,7 +62,6 @@ func TestServerInitialization(t *testing.T) {
 	w.Write(data)
 	w.Write([]byte("\n"))
 
-	// Give it a moment to process
 	time.Sleep(200 * time.Millisecond)
 
 	if stdout.Len() == 0 {
@@ -134,7 +130,6 @@ func TestToolHandlers(t *testing.T) {
 			t.Fatalf("Tool returned error: %v", result.Content[0])
 		}
 
-		// Commit staged changes
 		s.GetTool("commit_staged_changes").Handler(ctx, mcp.CallToolRequest{
 			Params: mcp.CallToolParams{
 				Name:      "commit_staged_changes",
@@ -142,7 +137,6 @@ func TestToolHandlers(t *testing.T) {
 			},
 		})
 
-		// Verify in DB
 		f, err := database.GetFeatureByName(ctx, "test-feature")
 		if err != nil {
 			t.Fatalf("Failed to get feature: %v", err)
@@ -210,7 +204,6 @@ func TestToolHandlers(t *testing.T) {
 			t.Fatalf("Tool returned error: %v", result.Content[0])
 		}
 
-		// Commit staged changes
 		s.GetTool("commit_staged_changes").Handler(ctx, mcp.CallToolRequest{
 			Params: mcp.CallToolParams{
 				Name:      "commit_staged_changes",
@@ -218,7 +211,6 @@ func TestToolHandlers(t *testing.T) {
 			},
 		})
 
-		// Verify in DB
 		tasks, _ := database.ListTasks(ctx, nil, nil)
 		found := false
 		for _, task := range tasks {
@@ -283,7 +275,6 @@ func TestToolHandlers(t *testing.T) {
 			t.Fatalf("Handler failed: %v, %v", err, result.Content)
 		}
 
-		// Verify
 		f, _ := database.GetFeatureByName(ctx, "test-feature")
 		task, err := database.GetTaskByName(ctx, "updated-task", f.ID)
 		if err != nil {
@@ -298,7 +289,6 @@ func TestToolHandlers(t *testing.T) {
 	})
 
 	t.Run("move_task_between_features", func(t *testing.T) {
-		// Create another feature
 		if err := database.CreateFeature(ctx, &models.Feature{
 			Name:          "other-feature",
 			Description:   "d",
@@ -321,21 +311,18 @@ func TestToolHandlers(t *testing.T) {
 			t.Fatalf("Handler failed: %v, %v", err, result.Content)
 		}
 
-		// Verify it moved
 		nf, _ := database.GetFeatureByName(ctx, "other-feature")
 		task, _ := database.GetTaskByName(ctx, "updated-task", nf.ID)
 		if task == nil {
 			t.Fatal("Task not found in new feature")
 		}
 
-		// Verify it's gone from old feature
 		of, _ := database.GetFeatureByName(ctx, "test-feature")
 		oldTask, _ := database.GetTaskByName(ctx, "updated-task", of.ID)
 		if oldTask != nil {
 			t.Fatal("Task still exists in old feature")
 		}
 
-		// Move it back for subsequent tests if necessary
 		req.Params.Arguments = map[string]interface{}{
 			"feature_name":     "other-feature",
 			"name":             "updated-task",
@@ -359,7 +346,6 @@ func TestToolHandlers(t *testing.T) {
 			t.Fatalf("Handler failed: %v, %v", err, result.Content)
 		}
 
-		// Verify
 		f, _ := database.GetFeatureByName(ctx, "test-feature")
 		task, _ := database.GetTaskByName(ctx, "updated-task", f.ID)
 		if task.Status != "in_progress" {
@@ -406,7 +392,6 @@ func TestToolHandlers(t *testing.T) {
 			t.Fatalf("Handler failed: %v, %v", err, result.Content)
 		}
 
-		// Verify
 		f, _ := database.GetFeatureByName(ctx, "test-feature")
 		task, _ := database.GetTaskByName(ctx, "updated-task", f.ID)
 		if task != nil {
@@ -470,7 +455,6 @@ func TestToolHandlers(t *testing.T) {
 			t.Fatalf("Tool returned error: %v", result.Content[0])
 		}
 
-		// Verify in DB
 		f, err := database.GetFeatureByName(ctx, "updated-feature")
 		if err != nil {
 			t.Fatalf("Failed to get feature: %v", err)
@@ -501,7 +485,6 @@ func TestToolHandlers(t *testing.T) {
 			t.Fatalf("Tool returned error: %v", result.Content[0])
 		}
 
-		// Verify in DB
 		f, err := database.GetFeatureByName(ctx, "updated-feature")
 		if err != nil {
 			t.Fatalf("Failed to check feature deletion: %v", err)
@@ -512,7 +495,6 @@ func TestToolHandlers(t *testing.T) {
 	})
 
 	t.Run("dependencies", func(t *testing.T) {
-		// Create features and tasks for dependency tests
 		if err := database.CreateFeature(ctx, &models.Feature{Name: "feat1", Description: "d", Specification: "s"}); err != nil {
 			t.Fatalf("Failed to create feat1: %v", err)
 		}
@@ -536,13 +518,11 @@ func TestToolHandlers(t *testing.T) {
 			t.Fatalf("Failed to create task2: %v", err)
 		}
 
-		// Verify tasks exist
 		t1, err := database.GetTaskByName(ctx, "task1", f1.ID)
 		if err != nil || t1 == nil {
 			t.Fatalf("Task1 not found after create: %v", err)
 		}
 
-		// Test create_dependency
 		req := mcp.CallToolRequest{}
 		req.Params.Name = "create_dependency"
 		req.Params.Arguments = map[string]interface{}{
@@ -558,7 +538,6 @@ func TestToolHandlers(t *testing.T) {
 			t.Fatalf("create_dependency failed: %v, %v", err, result.Content)
 		}
 
-		// Commit staged changes
 		s.GetTool("commit_staged_changes").Handler(ctx, mcp.CallToolRequest{
 			Params: mcp.CallToolParams{
 				Name:      "commit_staged_changes",
@@ -570,7 +549,6 @@ func TestToolHandlers(t *testing.T) {
 			t.Fatalf("Failed to create task1-bis: %v", err)
 		}
 
-		// Test create_dependency within same feature (default depends_on_feature_name)
 		req = mcp.CallToolRequest{}
 		req.Params.Name = "create_dependency"
 		req.Params.Arguments = map[string]interface{}{
@@ -584,7 +562,6 @@ func TestToolHandlers(t *testing.T) {
 			t.Fatalf("create_dependency (same feature) failed: %v, %v", err, result.Content)
 		}
 
-		// Commit staged changes
 		s.GetTool("commit_staged_changes").Handler(ctx, mcp.CallToolRequest{
 			Params: mcp.CallToolParams{
 				Name:      "commit_staged_changes",
@@ -592,7 +569,6 @@ func TestToolHandlers(t *testing.T) {
 			},
 		})
 
-		// Verify we have 2 dependencies now
 		tool = s.GetTool("get_task_dependencies")
 		req.Params.Name = "get_task_dependencies"
 		req.Params.Arguments = map[string]interface{}{
@@ -610,7 +586,6 @@ func TestToolHandlers(t *testing.T) {
 			t.Errorf("Expected 2 dependencies, got %d", len(depsResp.Dependencies))
 		}
 
-		// Test delete_dependency
 		req = mcp.CallToolRequest{}
 		req.Params.Name = "delete_dependency"
 		req.Params.Arguments = map[string]interface{}{
@@ -626,7 +601,6 @@ func TestToolHandlers(t *testing.T) {
 			t.Fatalf("delete_dependency failed: %v, %v", err, result.Content)
 		}
 
-		// Verify deletion
 		tool = s.GetTool("get_task_dependencies")
 		req.Params.Name = "get_task_dependencies"
 		req.Params.Arguments = map[string]interface{}{
@@ -675,7 +649,6 @@ func TestToolHandlers(t *testing.T) {
 	})
 
 	t.Run("lifecycle_tools", func(t *testing.T) {
-		// Setup
 		fName := "lifecycle-feat"
 		tName := "lifecycle-task"
 		if err := database.CreateFeature(ctx, &models.Feature{Name: fName, Description: "d", Specification: "s"}); err != nil {
@@ -706,7 +679,6 @@ func TestToolHandlers(t *testing.T) {
 				t.Fatalf("Handler failed: %v, %v", err, result.Content)
 			}
 
-			// Verify
 			task, _ := database.GetTaskByName(ctx, tName, f.ID)
 			if task.Status != models.TaskStatusInProgress {
 				t.Errorf("Expected status in_progress, got %s", task.Status)
@@ -728,7 +700,6 @@ func TestToolHandlers(t *testing.T) {
 				t.Fatalf("Handler failed: %v, %v", err, result.Content)
 			}
 
-			// Verify
 			task, _ := database.GetTaskByName(ctx, tName, f.ID)
 			if task.Status != models.TaskStatusBlocked {
 				t.Errorf("Expected status blocked, got %s", task.Status)
@@ -757,7 +728,6 @@ func TestToolHandlers(t *testing.T) {
 				t.Fatalf("Handler failed: %v, %v", err, result.Content)
 			}
 
-			// Verify
 			task, _ := database.GetTaskByName(ctx, tName, f.ID)
 			if task.Status != models.TaskStatusCompleted {
 				t.Errorf("Expected status completed, got %s", task.Status)
@@ -820,7 +790,6 @@ func TestToolHandlers(t *testing.T) {
 				t.Error("Expected success during staging, got error")
 			}
 
-			// Committing should fail
 			req = mcp.CallToolRequest{}
 			req.Params.Name = "commit_staged_changes"
 			req.Params.Arguments = map[string]interface{}{"session_id": "default"}
@@ -837,7 +806,6 @@ func TestToolHandlers(t *testing.T) {
 	t.Run("staging_and_batch_commit", func(t *testing.T) {
 		sessionID := "test-session"
 
-		// 1. Stage a feature
 		req := mcp.CallToolRequest{}
 		req.Params.Name = "create_feature"
 		req.Params.Arguments = map[string]interface{}{
@@ -853,13 +821,11 @@ func TestToolHandlers(t *testing.T) {
 			t.Fatalf("Failed to stage feature: %v, %v", err, result.Content)
 		}
 
-		// Verify NOT in DB
 		f, _ := database.GetFeatureByName(ctx, "staged-feature")
 		if f != nil {
 			t.Fatal("Feature should not be in DB yet")
 		}
 
-		// 2. Stage a task for that feature
 		req = mcp.CallToolRequest{}
 		req.Params.Name = "create_task"
 		req.Params.Arguments = map[string]interface{}{
@@ -876,7 +842,6 @@ func TestToolHandlers(t *testing.T) {
 			t.Fatalf("Failed to stage task: %v, %v", err, result.Content)
 		}
 
-		// 3. List staged changes
 		req = mcp.CallToolRequest{}
 		req.Params.Name = "list_staged_changes"
 		req.Params.Arguments = map[string]interface{}{
@@ -902,7 +867,6 @@ func TestToolHandlers(t *testing.T) {
 			t.Errorf("Expected 1 staged feature, got %d", len(items.Features))
 		}
 
-		// 4. Commit staged changes
 		req = mcp.CallToolRequest{}
 		req.Params.Name = "commit_staged_changes"
 		req.Params.Arguments = map[string]interface{}{
@@ -915,7 +879,6 @@ func TestToolHandlers(t *testing.T) {
 			t.Fatalf("Failed to commit staged changes: %v, %v", err, result.Content)
 		}
 
-		// Verify in DB
 		f, err = database.GetFeatureByName(ctx, "staged-feature")
 		if err != nil || f == nil {
 			t.Fatal("Feature should be in DB now")
@@ -942,13 +905,11 @@ func TestToolHandlers(t *testing.T) {
 			t.Fatalf("Handler failed: %v, %v", err, result.Content)
 		}
 
-		// Verify NOT in DB
 		f, _ := database.GetFeatureByName(ctx, "mandatory-staged-feature")
 		if f != nil {
 			t.Fatal("Feature should not be in DB before commit")
 		}
 
-		// Verify in list_staged_changes
 		req = mcp.CallToolRequest{}
 		req.Params.Name = "list_staged_changes"
 		req.Params.Arguments = map[string]interface{}{"session_id": "default"}
@@ -958,7 +919,6 @@ func TestToolHandlers(t *testing.T) {
 			t.Fatal("Feature not found in staged changes")
 		}
 
-		// Commit
 		s.GetTool("commit_staged_changes").Handler(ctx, mcp.CallToolRequest{
 			Params: mcp.CallToolParams{
 				Name:      "commit_staged_changes",
@@ -966,7 +926,6 @@ func TestToolHandlers(t *testing.T) {
 			},
 		})
 
-		// Now verify in DB
 		f, _ = database.GetFeatureByName(ctx, "mandatory-staged-feature")
 		if f == nil {
 			t.Fatal("Feature should be in DB after commit")
