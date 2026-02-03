@@ -69,6 +69,25 @@ func TestCompletedTasksEmptyState(t *testing.T) {
 	}
 }
 
+func TestCompletedTasksWidth(t *testing.T) {
+	width := 20
+	c := NewCompletedTasks(width)
+	c.Add(TaskResult{Name: "task1", Success: true}, 5)
+
+	view := c.View()
+	lines := strings.Split(view, "\n")
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		w := lipgloss.Width(line)
+		if w > width {
+			t.Errorf("line too wide: %d > %d. Line: %q", w, width, line)
+		}
+	}
+}
+
 func TestWorkerOutput(t *testing.T) {
 	o := NewWorkerOutput(80, 20)
 	o.SetSize(80, 20)

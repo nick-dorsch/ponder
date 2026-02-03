@@ -131,5 +131,9 @@ func (c *CompletedTasks) renderBox(title string, tasks []TaskResult, style lipgl
 	}
 
 	body := strings.Join(lines, "\n")
-	return style.Width(boxWidth).Render(subTitle + "\n" + body)
+	w := boxWidth - 2
+	if w < 0 {
+		w = 0
+	}
+	return style.Width(w).Render(subTitle + "\n" + body)
 }
