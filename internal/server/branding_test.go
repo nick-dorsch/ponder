@@ -6,13 +6,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/nick-dorsch/ponder/embed/graph_assets"
 )
 
 func TestBranding(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.Handle("/", http.FileServer(http.FS(graph_assets.Assets)))
+	mux := testMux()
 
 	t.Run("Check title and header in index.html", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/", nil)
@@ -39,8 +36,6 @@ func TestBranding(t *testing.T) {
 		}
 
 		if strings.Contains(content, "TaskTree") {
-			// Some mentions might remain in comments or variable names, but the main ones should be gone
-			// Actually, let's be more specific.
 			if strings.Contains(content, "<title>TaskTree</title>") || strings.Contains(content, "div class=\"panel-title\">TaskTree</div>") {
 				t.Error("index.html still contains TaskTree in title or header")
 			}

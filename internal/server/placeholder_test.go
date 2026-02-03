@@ -6,13 +6,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/nick-dorsch/ponder/embed/graph_assets"
 )
 
 func TestPlaceholderFix(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.Handle("/", http.FileServer(http.FS(graph_assets.Assets)))
+	mux := testMux()
 
 	t.Run("Check task-list-placeholder class in index.html", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/", nil)

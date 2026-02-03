@@ -129,8 +129,7 @@ func TestServer_API(t *testing.T) {
 	})
 
 	t.Run("GET /", func(t *testing.T) {
-		mux := http.NewServeMux()
-		mux.Handle("/", http.FileServer(http.FS(graph_assets.Assets)))
+		mux := testMux()
 		req := httptest.NewRequest("GET", "/", nil)
 		w := httptest.NewRecorder()
 		mux.ServeHTTP(w, req)
@@ -141,8 +140,7 @@ func TestServer_API(t *testing.T) {
 	})
 
 	t.Run("GET / graph.js", func(t *testing.T) {
-		mux := http.NewServeMux()
-		mux.Handle("/", http.FileServer(http.FS(graph_assets.Assets)))
+		mux := testMux()
 		req := httptest.NewRequest("GET", "/graph.js", nil)
 		w := httptest.NewRecorder()
 		mux.ServeHTTP(w, req)
@@ -151,4 +149,10 @@ func TestServer_API(t *testing.T) {
 			t.Errorf("Expected status OK, got %v", w.Code)
 		}
 	})
+}
+
+func testMux() *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.Handle("/", http.FileServer(http.FS(graph_assets.Assets)))
+	return mux
 }

@@ -46,30 +46,28 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 	tasks, err := s.db.ListTasks(r.Context(), nil, nil)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tasks)
+	s.respond(w, tasks, err)
 }
 
 func (s *Server) handleFeatures(w http.ResponseWriter, r *http.Request) {
 	features, err := s.db.ListFeatures(r.Context())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(features)
+	s.respond(w, features, err)
 }
 
 func (s *Server) handleGraph(w http.ResponseWriter, r *http.Request) {
 	graphJSON, err := s.db.GetGraphJSON(r.Context())
+	s.respond(w, graphJSON, err)
+}
+
+func (s *Server) respond(w http.ResponseWriter, data any, err error) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(graphJSON))
+	if str, ok := data.(string); ok {
+		w.Write([]byte(str))
+	} else {
+		json.NewEncoder(w).Encode(data)
+	}
 }
