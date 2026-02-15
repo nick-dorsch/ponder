@@ -4,7 +4,7 @@
     "ponder": {
       "type": "local",
       "command": [
-        "./ponder",
+        "ponder",
         "mcp"
       ],
       "enabled": true
