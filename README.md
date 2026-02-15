@@ -184,7 +184,7 @@ The Orbitor will interview you to gather requirements before creating any featur
 # Initialize Ponder in a directory (creates .ponder/ with database)
 ponder init [directory]
 
-# Start the orchestrator TUI and web server
+# Start the Work TUI (web UI enabled by default)
 ponder
 
 # Configure work defaults in .ponder/config.json
@@ -194,7 +194,7 @@ ponder
 #   "available_models": ["opencode/gemini-3-flash", "openai/gpt-5.3-codex"]
 # }
 
-# Root work flags
+# Work TUI flags (on root command)
 ponder -max_concurrency 5           # Maximum worker cap (default: config.json or 4)
 ponder -model <model>               # Model for workers (default: config.json or opencode/gemini-3-flash)
 ponder -interval 10s                # Polling interval when idle (default: 5s, 0 to exit)
@@ -248,7 +248,7 @@ create_dependency feature_name="auth-system" task_name="Create login endpoint" d
 # Orbitor reviews staged changes
 list_staged_changes
 
-# Oribotr commits all staged changes to the graph
+# Orbitor commits all staged changes to the graph
 commit_staged_changes
 
 # Worker agent gets available tasks (those with all dependencies completed)
