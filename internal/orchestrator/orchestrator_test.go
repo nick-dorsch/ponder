@@ -576,6 +576,65 @@ func TestOrchestrator_Polling(t *testing.T) {
 	}
 }
 
+func TestOrchestrator_ZeroTargetWorkersDoesNotSpawn(t *testing.T) {
+	store := newMockTaskStore()
+	store.addTask("1", "task1", 1)
+
+	o := NewOrchestrator(store, 3, "test-model")
+	o.SetTargetWorkers(0)
+	o.PollingInterval = 100 * time.Millisecond
+	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "true")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- o.Start(ctx)
+	}()
+
+	time.Sleep(300 * time.Millisecond)
+	cancel()
+	err := <-errChan
+
+	if err != nil && err != context.Canceled {
+		t.Fatalf("expected nil or context.Canceled, got %v", err)
+	}
+
+	if store.claimed["1"] {
+		t.Fatal("expected task not to be claimed when target workers is 0")
+	}
+}
+
+func TestOrchestrator_DecreaseWorkersIfIdle(t *testing.T) {
+	store := newMockTaskStore()
+	o := NewOrchestrator(store, 3, "test-model")
+
+	if ok := o.DecreaseWorkersIfIdle(); !ok {
+		t.Fatal("expected decrease to succeed with no active workers")
+	}
+	if got := o.GetTargetWorkers(); got != 2 {
+		t.Fatalf("expected target workers to be 2, got %d", got)
+	}
+}
+
+func TestOrchestrator_DecreaseWorkersBlockedWhenAllBusy(t *testing.T) {
+	store := newMockTaskStore()
+	o := NewOrchestrator(store, 3, "test-model")
+	o.workersMu.Lock()
+	o.workers[1] = &workerInstance{id: 1}
+	o.workers[2] = &workerInstance{id: 2}
+	o.workers[3] = &workerInstance{id: 3}
+	o.workersMu.Unlock()
+
+	if ok := o.DecreaseWorkersIfIdle(); ok {
+		t.Fatal("expected decrease to fail when all deployed workers are active")
+	}
+	if got := o.GetTargetWorkers(); got != 3 {
+		t.Fatalf("expected target workers to remain 3, got %d", got)
+	}
+}
+
 func TestOrchestrator_ShutdownOptimization(t *testing.T) {
 	store := newMockTaskStore()
 	store.addTask("1", "task1", 1)

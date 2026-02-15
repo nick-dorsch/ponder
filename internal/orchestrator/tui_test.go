@@ -11,13 +11,17 @@ import (
 func TestNewOrchestratorModel(t *testing.T) {
 	store := newMockTaskStore()
 	orch := NewOrchestrator(store, 3, "test-model")
+	orch.SetTargetWorkers(0)
 	m := NewOrchestratorModel(orch)
 
 	if m.orchestrator != orch {
 		t.Errorf("expected orchestrator to be set")
 	}
 	if len(m.workerViews) != 3 {
-		t.Errorf("expected 3 worker views initially, got %d", len(m.workerViews))
+		t.Errorf("expected 3 total worker views, got %d", len(m.workerViews))
+	}
+	if len(m.workerOrder) != 0 {
+		t.Errorf("expected 0 deployed worker views initially, got %d", len(m.workerOrder))
 	}
 	if m.completedTasks == nil {
 		t.Errorf("expected completedTasks to be initialized")
@@ -27,6 +31,7 @@ func TestNewOrchestratorModel(t *testing.T) {
 func TestOrchestratorModel_Update(t *testing.T) {
 	store := newMockTaskStore()
 	orch := NewOrchestrator(store, 3, "test-model")
+	orch.SetTargetWorkers(3)
 	m := NewOrchestratorModel(orch)
 
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
@@ -54,6 +59,7 @@ func TestOrchestratorModel_Update(t *testing.T) {
 func TestOrchestratorModel_Navigation(t *testing.T) {
 	store := newMockTaskStore()
 	orch := NewOrchestrator(store, 3, "test-model")
+	orch.SetTargetWorkers(3)
 	m := NewOrchestratorModel(orch)
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
 
@@ -85,6 +91,7 @@ func TestOrchestratorModel_Navigation(t *testing.T) {
 func TestOrchestratorModel_Scrolling(t *testing.T) {
 	store := newMockTaskStore()
 	orch := NewOrchestrator(store, 10, "test-model")
+	orch.SetTargetWorkers(10)
 	m := NewOrchestratorModel(orch)
 
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 20})
@@ -116,6 +123,7 @@ func TestOrchestratorModel_Scrolling(t *testing.T) {
 func TestOrchestratorModel_Expansion(t *testing.T) {
 	store := newMockTaskStore()
 	orch := NewOrchestrator(store, 3, "test-model")
+	orch.SetTargetWorkers(3)
 	m := NewOrchestratorModel(orch)
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
 
@@ -150,6 +158,7 @@ func TestOrchestratorModel_Expansion(t *testing.T) {
 func TestOrchestratorModel_View(t *testing.T) {
 	store := newMockTaskStore()
 	orch := NewOrchestrator(store, 3, "test-model")
+	orch.SetTargetWorkers(3)
 	m := NewOrchestratorModel(orch)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
@@ -171,6 +180,7 @@ func TestOrchestratorModel_View(t *testing.T) {
 func TestOrchestratorModel_RenderHeader_WithOrb(t *testing.T) {
 	store := newMockTaskStore()
 	orch := NewOrchestrator(store, 3, "test-model")
+	orch.SetTargetWorkers(3)
 	orch.WebURL = "http://localhost:8080"
 	m := NewOrchestratorModel(orch)
 	m.isIdle = true
@@ -185,7 +195,7 @@ func TestOrchestratorModel_RenderHeader_WithOrb(t *testing.T) {
 		"Ponder Orchestrator",
 		"Waiting for tasks...",
 		"Model: test-model",
-		"Workers: 0/3",
+		"Workers: 0 active | 3/3 deployed",
 		"Tasks: 0/0",
 		"Web UI: http://localhost:8080",
 	}
@@ -206,6 +216,7 @@ func TestOrchestratorModel_RenderHeader_WithOrb(t *testing.T) {
 func TestOrchestratorModel_GetHeaderHeight(t *testing.T) {
 	store := newMockTaskStore()
 	orch := NewOrchestrator(store, 3, "test-model")
+	orch.SetTargetWorkers(3)
 	m := NewOrchestratorModel(orch)
 
 	height := m.getHeaderHeight()
@@ -224,6 +235,7 @@ func TestOrchestratorModel_GetHeaderHeight(t *testing.T) {
 func TestOrchestratorModel_RecalculateLayout_HeaderIntegration(t *testing.T) {
 	store := newMockTaskStore()
 	orch := NewOrchestrator(store, 1, "test-model")
+	orch.SetTargetWorkers(1)
 	m := NewOrchestratorModel(orch)
 
 	width, height := 100, 40
@@ -257,6 +269,7 @@ func TestWorkerViewHeight(t *testing.T) {
 func TestOrchestratorModel_ContextAwareScrolling(t *testing.T) {
 	store := newMockTaskStore()
 	orch := NewOrchestrator(store, 3, "test-model")
+	orch.SetTargetWorkers(3)
 	m := NewOrchestratorModel(orch)
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
 
@@ -288,6 +301,7 @@ func TestOrchestratorModel_ContextAwareScrolling(t *testing.T) {
 func TestOrchestratorModel_EnterKeyExpansion(t *testing.T) {
 	store := newMockTaskStore()
 	orch := NewOrchestrator(store, 3, "test-model")
+	orch.SetTargetWorkers(3)
 	m := NewOrchestratorModel(orch)
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
 
@@ -305,5 +319,87 @@ func TestOrchestratorModel_EnterKeyExpansion(t *testing.T) {
 	m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if m.workerViews[1].IsExpanded() {
 		t.Errorf("expected worker 1 to be collapsed via Enter key after second toggle")
+	}
+}
+
+func TestOrchestratorModel_AddWorkerKeybind(t *testing.T) {
+	store := newMockTaskStore()
+	orch := NewOrchestrator(store, 3, "test-model")
+	orch.SetTargetWorkers(0)
+	m := NewOrchestratorModel(orch)
+
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+
+	if got := orch.GetTargetWorkers(); got != 1 {
+		t.Fatalf("expected target workers to increase to 1, got %d", got)
+	}
+}
+
+func TestOrchestratorModel_DeleteWorkerKeybindOnlyIdle(t *testing.T) {
+	store := newMockTaskStore()
+	orch := NewOrchestrator(store, 3, "test-model")
+	m := NewOrchestratorModel(orch)
+
+	orch.workersMu.Lock()
+	orch.workers[1] = &workerInstance{id: 1}
+	orch.workers[2] = &workerInstance{id: 2}
+	orch.workers[3] = &workerInstance{id: 3}
+	orch.workersMu.Unlock()
+
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")})
+
+	if got := orch.GetTargetWorkers(); got != 3 {
+		t.Fatalf("expected target workers to remain 3 when all busy, got %d", got)
+	}
+
+	orch.workersMu.Lock()
+	delete(orch.workers, 3)
+	orch.workersMu.Unlock()
+
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")})
+
+	if got := orch.GetTargetWorkers(); got != 2 {
+		t.Fatalf("expected target workers to decrease to 2 when idle worker exists, got %d", got)
+	}
+}
+
+func TestOrchestratorModel_ModelMenuSelection(t *testing.T) {
+	store := newMockTaskStore()
+	orch := NewOrchestrator(store, 3, "model-one")
+	orch.SetAvailableModels([]string{"model-one", "model-two"})
+	m := NewOrchestratorModel(orch)
+	m.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("m")})
+	if !m.showModelMenu {
+		t.Fatalf("expected model menu to be open")
+	}
+
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	if m.showModelMenu {
+		t.Fatalf("expected model menu to close after selection")
+	}
+	if got := orch.GetModel(); got != "model-two" {
+		t.Fatalf("expected selected model to be model-two, got %s", got)
+	}
+}
+
+func TestOrchestratorModel_ModelMenuShownInView(t *testing.T) {
+	store := newMockTaskStore()
+	orch := NewOrchestrator(store, 3, "model-one")
+	orch.SetAvailableModels([]string{"model-one", "model-two"})
+	m := NewOrchestratorModel(orch)
+	m.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("m")})
+	view := m.View()
+
+	if !strings.Contains(view, "Select Model") {
+		t.Fatalf("expected model selector to be rendered")
+	}
+	if !strings.Contains(view, "model-two") {
+		t.Fatalf("expected model list to include configured models")
 	}
 }
