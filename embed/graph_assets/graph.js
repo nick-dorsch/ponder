@@ -154,11 +154,43 @@ function formatDuration(seconds) {
 const API_ENDPOINT = '/api/graph';
 const TASKS_ENDPOINT = '/api/tasks';
 const FEATURES_ENDPOINT = '/api/features';
+const SIDEBAR_MIN_WIDTH = 220;
+const SIDEBAR_MAX_WIDTH_RATIO = 0.5;
+const SIDEBAR_DEFAULT_WIDTH_RATIO = 0.24;
 let WIDTH = window.innerWidth;
 let HEIGHT = window.innerHeight;
-let SIDEBAR_WIDTH = WIDTH * 0.24;
+let SIDEBAR_WIDTH = 0;
 let isDragging = false;
 let selectedNodeId = null;
+let activeResizePointerId = null;
+
+const taskPanel = document.querySelector('.task-panel');
+const sidebarResizeHandle = document.querySelector('.sidebar-resize-handle');
+
+function getSidebarMaxWidth() {
+  return Math.max(SIDEBAR_MIN_WIDTH, Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO));
+}
+
+function clampSidebarWidth(width) {
+  const maxWidth = getSidebarMaxWidth();
+  return Math.min(Math.max(width, SIDEBAR_MIN_WIDTH), maxWidth);
+}
+
+function getDefaultSidebarWidth() {
+  return clampSidebarWidth(Math.floor(window.innerWidth * SIDEBAR_DEFAULT_WIDTH_RATIO));
+}
+
+function applySidebarWidth(width, restartSimulation = true) {
+  SIDEBAR_WIDTH = clampSidebarWidth(width);
+  if (taskPanel) {
+    taskPanel.style.width = `${SIDEBAR_WIDTH}px`;
+  }
+
+  if (restartSimulation) {
+    simulation.force('forceX', d3.forceX((WIDTH + SIDEBAR_WIDTH) / 2).strength(0.1));
+    simulation.alpha(0.2).restart();
+  }
+}
 
 // Status colors
 const STATUS_COLORS = {
@@ -207,6 +239,9 @@ const simulation = d3.forceSimulation()
   .force('forceX', d3.forceX((WIDTH + SIDEBAR_WIDTH) / 2).strength(0.15))
   .force('forceY', d3.forceY(HEIGHT / 2).strength(0.15))
   .force('charge', d3.forceManyBody().strength(-1000));
+
+applySidebarWidth(getDefaultSidebarWidth(), false);
+simulation.force('forceX', d3.forceX((WIDTH + SIDEBAR_WIDTH) / 2).strength(0.15));
 
 // Graph elements
 let linkGroup = container.append('g').attr('class', 'links');
@@ -732,6 +767,47 @@ function updateTaskList(tasks, features) {
 fetchGraph();
 fetchTasks();
 
+if (sidebarResizeHandle) {
+  sidebarResizeHandle.addEventListener('pointerdown', (event) => {
+    if (event.button !== undefined && event.button !== 0) {
+      return;
+    }
+
+    activeResizePointerId = event.pointerId;
+    sidebarResizeHandle.classList.add('active');
+    document.body.classList.add('sidebar-resizing');
+    sidebarResizeHandle.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  });
+
+  sidebarResizeHandle.addEventListener('pointermove', (event) => {
+    if (activeResizePointerId === null || event.pointerId !== activeResizePointerId) {
+      return;
+    }
+
+    applySidebarWidth(event.clientX);
+  });
+
+  const stopSidebarResize = (event) => {
+    if (activeResizePointerId === null || event.pointerId !== activeResizePointerId) {
+      return;
+    }
+
+    sidebarResizeHandle.classList.remove('active');
+    document.body.classList.remove('sidebar-resizing');
+    if (sidebarResizeHandle.hasPointerCapture(event.pointerId)) {
+      sidebarResizeHandle.releasePointerCapture(event.pointerId);
+    }
+    activeResizePointerId = null;
+  };
+
+  sidebarResizeHandle.addEventListener('pointerup', stopSidebarResize);
+  sidebarResizeHandle.addEventListener('pointercancel', stopSidebarResize);
+  sidebarResizeHandle.addEventListener('dblclick', () => {
+    applySidebarWidth(getDefaultSidebarWidth());
+  });
+}
+
 // Auto-refresh every 3 seconds
 setInterval(() => {
   fetchGraph();
@@ -742,7 +818,7 @@ setInterval(() => {
 window.addEventListener('resize', () => {
   WIDTH = window.innerWidth;
   HEIGHT = window.innerHeight;
-  SIDEBAR_WIDTH = WIDTH * 0.24;
+  applySidebarWidth(SIDEBAR_WIDTH, false);
   const newWidth = WIDTH;
   const newHeight = HEIGHT;
 
