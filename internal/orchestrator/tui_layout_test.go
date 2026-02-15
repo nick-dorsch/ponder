@@ -11,6 +11,7 @@ import (
 func TestOrchestratorModel_WidthFitting(t *testing.T) {
 	store := newMockTaskStore()
 	orch := NewOrchestrator(store, 3, "test-model")
+	orch.SetTargetWorkers(3)
 	m := NewOrchestratorModel(orch)
 
 	widths := []int{80, 100, 120, 150}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -24,6 +25,23 @@ var (
 	snapshotPath string
 	verbose      bool
 )
+
+const (
+	defaultWorkMaxConcurrency = 4
+	defaultWorkModel          = "opencode/gemini-3-flash"
+)
+
+type workConfig struct {
+	Model           *string  `json:"model"`
+	MaxConcurrency  *int     `json:"max_concurrency"`
+	AvailableModels []string `json:"available_models"`
+}
+
+type workDefaults struct {
+	Model           string
+	MaxConcurrency  int
+	AvailableModels []string
+}
 
 func main() {
 	flag.StringVar(&dbPath, "db-path", ".ponder/ponder.db", "Path to database file")
@@ -66,8 +84,6 @@ func main() {
 		err = runWeb(args)
 	case "work":
 		err = runWork(args)
-	case "orchestrate":
-		err = runOrchestrate(args)
 	case "db":
 		err = runDB(args)
 	default:
@@ -98,6 +114,14 @@ func runInit(args []string) error {
 		return fmt.Errorf("failed to create .gitignore: %w", err)
 	}
 	fmt.Println("✓ Created .ponder/.gitignore")
+
+	configPath := filepath.Join(ponderDir, "config.json")
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		if err := writeDefaultConfig(configPath); err != nil {
+			return fmt.Errorf("failed to create config file: %w", err)
+		}
+		fmt.Println("✓ Created .ponder/config.json")
+	}
 
 	finalDbPath := dbPath
 	if dbPath == ".ponder/ponder.db" {
@@ -323,24 +347,15 @@ func runStatus(args []string) error {
 	return nil
 }
 
-func runOrchestrate(args []string) error {
-	orchFlags := flag.NewFlagSet("orchestrate", flag.ContinueOnError)
-	maxWorkers := orchFlags.Int("workers", 3, "Maximum number of concurrent workers")
-	model := orchFlags.String("model", "opencode/gemini-3-flash", "Model to use for workers")
-	interval := orchFlags.Duration("interval", 5*time.Second, "Polling interval when idle (0 to exit)")
-	enableWeb := orchFlags.Bool("web", true, "Enable web UI")
-	webPort := orchFlags.String("port", "8000", "Port for web UI")
-	if err := orchFlags.Parse(args); err != nil {
+func runWork(args []string) error {
+	defaults, err := loadWorkDefaults()
+	if err != nil {
 		return err
 	}
 
-	return runOrchestratorCommon(*maxWorkers, *model, *interval, *enableWeb, *webPort)
-}
-
-func runWork(args []string) error {
 	workFlags := flag.NewFlagSet("work", flag.ContinueOnError)
-	concurrency := workFlags.Int("concurrency", 4, "Maximum number of concurrent workers")
-	model := workFlags.String("model", "opencode/gemini-3-flash", "Model to use for workers")
+	maxConcurrency := workFlags.Int("max_concurrency", defaults.MaxConcurrency, "Maximum number of concurrent workers")
+	model := workFlags.String("model", defaults.Model, "Model to use for workers")
 	interval := workFlags.Duration("interval", 5*time.Second, "Polling interval when idle (0 to exit)")
 	enableWeb := workFlags.Bool("web", true, "Enable web UI")
 	webPort := workFlags.String("port", "8000", "Port for web UI")
@@ -348,10 +363,81 @@ func runWork(args []string) error {
 		return err
 	}
 
-	return runOrchestratorCommon(*concurrency, *model, *interval, *enableWeb, *webPort)
+	return runOrchestratorCommon(*maxConcurrency, 0, *model, defaults.AvailableModels, *interval, *enableWeb, *webPort)
 }
 
-func runOrchestratorCommon(concurrency int, model string, interval time.Duration, enableWeb bool, webPort string) error {
+func loadWorkDefaults() (workDefaults, error) {
+	defaults := workDefaults{
+		Model:           defaultWorkModel,
+		MaxConcurrency:  defaultWorkMaxConcurrency,
+		AvailableModels: []string{defaultWorkModel},
+	}
+
+	configPath := filepath.Join(filepath.Dir(dbPath), "config.json")
+	data, err := os.ReadFile(configPath)
+	if os.IsNotExist(err) {
+		return defaults, nil
+	}
+	if err != nil {
+		return defaults, fmt.Errorf("failed to read config file %s: %w", configPath, err)
+	}
+
+	var cfg workConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return defaults, fmt.Errorf("failed to parse config file %s: %w", configPath, err)
+	}
+
+	if cfg.Model != nil && *cfg.Model != "" {
+		defaults.Model = *cfg.Model
+	}
+	if cfg.MaxConcurrency != nil {
+		if *cfg.MaxConcurrency < 1 {
+			return defaults, fmt.Errorf("invalid max_concurrency in %s: must be >= 1", configPath)
+		}
+		defaults.MaxConcurrency = *cfg.MaxConcurrency
+	}
+	if len(cfg.AvailableModels) > 0 {
+		defaults.AvailableModels = cfg.AvailableModels
+	}
+
+	foundModel := false
+	for _, model := range defaults.AvailableModels {
+		if model == defaults.Model {
+			foundModel = true
+			break
+		}
+	}
+	if !foundModel {
+		defaults.AvailableModels = append(defaults.AvailableModels, defaults.Model)
+	}
+
+	return defaults, nil
+}
+
+func writeDefaultConfig(configPath string) error {
+	model := defaultWorkModel
+	maxConcurrency := defaultWorkMaxConcurrency
+
+	cfg := workConfig{
+		Model:           &model,
+		MaxConcurrency:  &maxConcurrency,
+		AvailableModels: []string{defaultWorkModel},
+	}
+
+	content, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal default config: %w", err)
+	}
+	content = append(content, '\n')
+
+	if err := os.WriteFile(configPath, content, 0644); err != nil {
+		return fmt.Errorf("failed to write default config: %w", err)
+	}
+
+	return nil
+}
+
+func runOrchestratorCommon(maxConcurrency int, initialWorkers int, model string, availableModels []string, interval time.Duration, enableWeb bool, webPort string) error {
 	database, err := db.Open(dbPath)
 	if err != nil {
 		return err
@@ -371,7 +457,9 @@ func runOrchestratorCommon(concurrency int, model string, interval time.Duration
 		}
 	})
 
-	orch := orchestrator.NewOrchestrator(database, concurrency, model)
+	orch := orchestrator.NewOrchestrator(database, maxConcurrency, model)
+	orch.SetAvailableModels(availableModels)
+	orch.SetTargetWorkers(initialWorkers)
 	orch.PollingInterval = interval
 
 	if enableWeb {

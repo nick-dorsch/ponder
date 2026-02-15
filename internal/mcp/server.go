@@ -18,8 +18,8 @@ func NewServer(database *db.DB) *server.MCPServer {
 	s.AddTool(mcp.NewTool("create_feature",
 		mcp.WithDescription("Propose a new feature. Changes are staged and must be committed to take effect."),
 		mcp.WithString("name", mcp.Description("Feature name (max 55 chars, unique)"), mcp.Required()),
-		mcp.WithString("description", mcp.Description("Feature description"), mcp.Required()),
-		mcp.WithString("specification", mcp.Description("Feature specification"), mcp.Required()),
+		mcp.WithString("description", mcp.Description("Short feature description"), mcp.Required()),
+		mcp.WithString("specification", mcp.Description("Detailed feature specification."), mcp.Required()),
 		mcp.WithString("session_id", mcp.Description("Session ID for staging changes (defaults to 'default').")),
 	), createFeatureHandler(database))
 
@@ -50,8 +50,8 @@ func NewServer(database *db.DB) *server.MCPServer {
 		mcp.WithDescription("Propose a new task. Changes are staged and must be committed to take effect."),
 		mcp.WithString("feature_name", mcp.Description("Feature name"), mcp.Required()),
 		mcp.WithString("name", mcp.Description("Task name (max 55 chars)"), mcp.Required()),
-		mcp.WithString("description", mcp.Description("Task description"), mcp.Required()),
-		mcp.WithString("specification", mcp.Description("Task specification"), mcp.Required()),
+		mcp.WithString("description", mcp.Description("Short task description"), mcp.Required()),
+		mcp.WithString("specification", mcp.Description("Detailed task specification. This should give a software engineer enough information to complete the task effectively."), mcp.Required()),
 		mcp.WithNumber("priority", mcp.Description("Priority (0-10)")),
 		mcp.WithBoolean("tests_required", mcp.Description("Whether tests are required")),
 		mcp.WithString("session_id", mcp.Description("Session ID for staging changes (defaults to 'default').")),

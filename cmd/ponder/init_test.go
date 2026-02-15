@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -38,6 +39,32 @@ func TestInit(t *testing.T) {
 	dbFilePath := filepath.Join(ponderDir, "ponder.db")
 	if _, err := os.Stat(dbFilePath); os.IsNotExist(err) {
 		t.Errorf("database file was not created")
+	}
+
+	configPath := filepath.Join(ponderDir, "config.json")
+	configContent, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("failed to read config.json: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(configContent, &cfg); err != nil {
+		t.Fatalf("failed to parse config.json: %v", err)
+	}
+
+	if cfg["model"] != "opencode/gemini-3-flash" {
+		t.Errorf("expected default model in config, got %v", cfg["model"])
+	}
+	if cfg["max_concurrency"] != float64(4) {
+		t.Errorf("expected default max_concurrency in config, got %v", cfg["max_concurrency"])
+	}
+
+	availableModels, ok := cfg["available_models"].([]any)
+	if !ok {
+		t.Fatalf("expected available_models to be an array, got %T", cfg["available_models"])
+	}
+	if len(availableModels) != 1 || availableModels[0] != "opencode/gemini-3-flash" {
+		t.Errorf("expected default available_models [opencode/gemini-3-flash], got %v", availableModels)
 	}
 }
 

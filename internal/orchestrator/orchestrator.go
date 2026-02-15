@@ -38,18 +38,22 @@ type failedTaskInfo struct {
 
 // Orchestrator manages concurrent task processing.
 type Orchestrator struct {
-	store          TaskStore
-	maxWorkers     int
-	model          string
-	workers        map[int]*workerInstance
-	workersMu      sync.RWMutex
-	cmdFactory     func(ctx context.Context, name string, arg ...string) *exec.Cmd
-	totalTasks     int
-	completedTasks int
-	msgChan        chan tea.Msg
-	ctx            context.Context
-	cancel         context.CancelFunc
-	WebURL         string
+	store           TaskStore
+	maxWorkers      int
+	targetWorkers   int
+	model           string
+	availableModels []string
+	modelMu         sync.RWMutex
+	workers         map[int]*workerInstance
+	workersMu       sync.RWMutex
+	targetWorkersMu sync.RWMutex
+	cmdFactory      func(ctx context.Context, name string, arg ...string) *exec.Cmd
+	totalTasks      int
+	completedTasks  int
+	msgChan         chan tea.Msg
+	ctx             context.Context
+	cancel          context.CancelFunc
+	WebURL          string
 
 	// Failed task tracking with backoff
 	failedTasks     map[string]*failedTaskInfo
@@ -77,7 +81,9 @@ func NewOrchestrator(store TaskStore, maxWorkers int, model string) *Orchestrato
 	return &Orchestrator{
 		store:            store,
 		maxWorkers:       maxWorkers,
+		targetWorkers:    maxWorkers,
 		model:            model,
+		availableModels:  []string{model},
 		workers:          make(map[int]*workerInstance),
 		cmdFactory:       exec.CommandContext,
 		msgChan:          make(chan tea.Msg, 100),
@@ -154,6 +160,11 @@ func (o *Orchestrator) trySpawnWorkers() {
 	activeWorkers := len(o.workers)
 	o.workersMu.Unlock()
 
+	targetWorkers := o.GetTargetWorkers()
+	if targetWorkers <= activeWorkers {
+		return
+	}
+
 	if activeWorkers >= o.maxWorkers {
 		return
 	}
@@ -172,6 +183,9 @@ func (o *Orchestrator) trySpawnWorkers() {
 	}
 
 	workersToSpawn := availableCount
+	if workersToSpawn > targetWorkers-activeWorkers {
+		workersToSpawn = targetWorkers - activeWorkers
+	}
 	if workersToSpawn > o.maxWorkers-activeWorkers {
 		workersToSpawn = o.maxWorkers - activeWorkers
 	}
@@ -311,7 +325,7 @@ func (o *Orchestrator) runWorker(ctx context.Context, worker *workerInstance) {
 	})
 
 	prompt := o.constructPrompt(task)
-	cmd := o.cmdFactory(ctx, "opencode", "run", "--model", o.model)
+	cmd := o.cmdFactory(ctx, "opencode", "run", "--model", o.GetModel())
 	cmd.Stdin = strings.NewReader(prompt)
 
 	output := &outputCapture{
@@ -441,6 +455,105 @@ func (o *Orchestrator) GetStats() (total, completed int) {
 	o.workersMu.RLock()
 	defer o.workersMu.RUnlock()
 	return o.totalTasks, o.completedTasks
+}
+
+func (o *Orchestrator) GetTargetWorkers() int {
+	o.targetWorkersMu.RLock()
+	defer o.targetWorkersMu.RUnlock()
+	return o.targetWorkers
+}
+
+func (o *Orchestrator) GetModel() string {
+	o.modelMu.RLock()
+	defer o.modelMu.RUnlock()
+	return o.model
+}
+
+func (o *Orchestrator) SetModel(model string) {
+	if model == "" {
+		return
+	}
+
+	o.modelMu.Lock()
+	o.model = model
+	o.modelMu.Unlock()
+}
+
+func (o *Orchestrator) GetAvailableModels() []string {
+	o.modelMu.RLock()
+	defer o.modelMu.RUnlock()
+
+	models := make([]string, len(o.availableModels))
+	copy(models, o.availableModels)
+	return models
+}
+
+func (o *Orchestrator) SetAvailableModels(models []string) {
+	filtered := make([]string, 0, len(models))
+	seen := make(map[string]bool, len(models))
+	for _, model := range models {
+		if model == "" || seen[model] {
+			continue
+		}
+		seen[model] = true
+		filtered = append(filtered, model)
+	}
+
+	o.modelMu.Lock()
+	defer o.modelMu.Unlock()
+
+	if len(filtered) == 0 {
+		filtered = []string{o.model}
+	}
+
+	if !seen[o.model] {
+		filtered = append(filtered, o.model)
+	}
+
+	o.availableModels = filtered
+}
+
+func (o *Orchestrator) SetTargetWorkers(target int) {
+	if target < 0 {
+		target = 0
+	}
+	if target > o.maxWorkers {
+		target = o.maxWorkers
+	}
+
+	o.targetWorkersMu.Lock()
+	o.targetWorkers = target
+	o.targetWorkersMu.Unlock()
+}
+
+func (o *Orchestrator) IncreaseWorkers() bool {
+	o.targetWorkersMu.Lock()
+	defer o.targetWorkersMu.Unlock()
+
+	if o.targetWorkers >= o.maxWorkers {
+		return false
+	}
+	o.targetWorkers++
+	return true
+}
+
+func (o *Orchestrator) DecreaseWorkersIfIdle() bool {
+	o.workersMu.RLock()
+	activeWorkers := len(o.workers)
+	o.workersMu.RUnlock()
+
+	o.targetWorkersMu.Lock()
+	defer o.targetWorkersMu.Unlock()
+
+	if o.targetWorkers <= 0 {
+		return false
+	}
+	if o.targetWorkers <= activeWorkers {
+		return false
+	}
+
+	o.targetWorkers--
+	return true
 }
 
 func (o *Orchestrator) sendMsg(msg tea.Msg) {
