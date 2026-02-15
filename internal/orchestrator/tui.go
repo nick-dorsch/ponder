@@ -494,7 +494,7 @@ func (m *OrchestratorModel) renderHeader() string {
 		status = "Waiting for tasks..."
 	}
 
-	headerText := fmt.Sprintf("Ponder Orchestrator | %s | Model: %s | Workers: %d active | %d/%d deployed | Tasks: %d/%d",
+	headerText := fmt.Sprintf("Ponder | %s | Model: %s | Workers: %d active | %d/%d deployed | Tasks: %d/%d",
 		status,
 		m.orchestrator.GetModel(),
 		len(m.orchestrator.GetActiveWorkers()),

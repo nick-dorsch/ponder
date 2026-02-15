@@ -166,7 +166,7 @@ func TestOrchestratorModel_View(t *testing.T) {
 	if view == "" {
 		t.Error("View() returned empty string")
 	}
-	if !strings.Contains(view, "Ponder Orchestrator") {
+	if !strings.Contains(view, "Ponder") {
 		t.Error("View() missing header")
 	}
 	if !strings.Contains(view, "⬤") {
@@ -192,7 +192,7 @@ func TestOrchestratorModel_RenderHeader_WithOrb(t *testing.T) {
 	}
 
 	expectedElements := []string{
-		"Ponder Orchestrator",
+		"Ponder",
 		"Waiting for tasks...",
 		"Model: test-model",
 		"Workers: 0 active | 3/3 deployed",

@@ -1,7 +1,7 @@
 ---
 description: Manages features, tasks and dependencies to the Ponder graph using the Ponder MCP server
 mode: primary
-model: opencode/gemini-3-flash
+model: openai/gpt-5.3-codex
 color: "#76db7d"
 temperature: 0.1
 tools:
