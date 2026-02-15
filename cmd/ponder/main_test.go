@@ -46,13 +46,10 @@ func TestExecuteRoutesRootToWorkTUI(t *testing.T) {
 	})
 
 	called := false
-	runOrchestrator = func(maxConcurrency int, initialWorkers int, model string, availableModels []string, interval time.Duration, enableWeb bool, webPort string) error {
+	runOrchestrator = func(maxConcurrency int, model string, availableModels []string, interval time.Duration, enableWeb bool, webPort string) error {
 		called = true
 		if maxConcurrency != 7 {
 			t.Errorf("expected max concurrency 7, got %d", maxConcurrency)
-		}
-		if initialWorkers != 0 {
-			t.Errorf("expected initial workers 0, got %d", initialWorkers)
 		}
 		if model != "cfg/model" {
 			t.Errorf("expected model cfg/model, got %s", model)

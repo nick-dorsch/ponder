@@ -89,7 +89,7 @@ func execute(args []string, stderr io.Writer) error {
 	}
 
 	if rootFlags.NArg() == 0 {
-		return runOrchestrator(*maxConcurrency, 0, *model, defaults.AvailableModels, *interval, *enableWeb, *webPort)
+		return runOrchestrator(*maxConcurrency, *model, defaults.AvailableModels, *interval, *enableWeb, *webPort)
 	}
 
 	command := rootFlags.Arg(0)
@@ -466,7 +466,7 @@ func writeDefaultConfig(configPath string) error {
 	return nil
 }
 
-func runOrchestratorCommon(maxConcurrency int, initialWorkers int, model string, availableModels []string, interval time.Duration, enableWeb bool, webPort string) error {
+func runOrchestratorCommon(maxConcurrency int, model string, availableModels []string, interval time.Duration, enableWeb bool, webPort string) error {
 	database, err := db.Open(dbPath)
 	if err != nil {
 		return err
@@ -488,7 +488,7 @@ func runOrchestratorCommon(maxConcurrency int, initialWorkers int, model string,
 
 	orch := orchestrator.NewOrchestrator(database, maxConcurrency, model)
 	orch.SetAvailableModels(availableModels)
-	orch.SetTargetWorkers(initialWorkers)
+	orch.SetTargetWorkers(0)
 	orch.PollingInterval = interval
 
 	if enableWeb {
