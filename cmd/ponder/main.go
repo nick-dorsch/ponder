@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,7 +18,6 @@ import (
 	"github.com/nick-dorsch/ponder/internal/mcp"
 	"github.com/nick-dorsch/ponder/internal/orchestrator"
 	"github.com/nick-dorsch/ponder/internal/server"
-	"github.com/nick-dorsch/ponder/internal/ui"
 	"github.com/nick-dorsch/ponder/pkg/models"
 )
 
@@ -43,58 +44,105 @@ type workDefaults struct {
 	AvailableModels []string
 }
 
+var runOrchestrator = runOrchestratorCommon
+
 func main() {
-	flag.StringVar(&dbPath, "db-path", ".ponder/ponder.db", "Path to database file")
-	flag.StringVar(&snapshotPath, "snapshot-path", ".ponder/snapshot.jsonl", "Path to snapshot file")
-	flag.BoolVar(&verbose, "verbose", false, "Enable verbose logging")
-	flag.Parse()
-
-	var command string
-	var args []string
-
-	if flag.NArg() == 0 {
-		selected, err := ui.RunMenu()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error running menu: %v\n", err)
-			os.Exit(1)
-		}
-		if selected == "" {
+	err := execute(os.Args[1:], os.Stderr)
+	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
 			os.Exit(0)
 		}
-		command = selected
-		args = []string{}
-	} else {
-		command = flag.Arg(0)
-		args = flag.Args()[1:]
-	}
-
-	var err error
-	switch command {
-	case "init":
-		err = runInit(args)
-	case "mcp":
-		err = runMCP(args)
-	case "list-features":
-		err = runListFeatures(args)
-	case "list-tasks":
-		err = runListTasks(args)
-	case "status":
-		err = runStatus(args)
-	case "web":
-		err = runWeb(args)
-	case "work":
-		err = runWork(args)
-	case "db":
-		err = runDB(args)
-	default:
-		fmt.Printf("Unknown command: %s\n", command)
-		os.Exit(1)
-	}
-
-	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func execute(args []string, stderr io.Writer) error {
+	rootFlags := flag.NewFlagSet("ponder", flag.ContinueOnError)
+	rootFlags.SetOutput(stderr)
+	rootFlags.StringVar(&dbPath, "db-path", ".ponder/ponder.db", "Path to database file")
+	rootFlags.StringVar(&snapshotPath, "snapshot-path", ".ponder/snapshot.jsonl", "Path to snapshot file")
+	rootFlags.BoolVar(&verbose, "verbose", false, "Enable verbose logging")
+	maxConcurrency := rootFlags.Int("max_concurrency", defaultWorkMaxConcurrency, "Maximum number of concurrent workers")
+	model := rootFlags.String("model", defaultWorkModel, "Model to use for workers")
+	interval := rootFlags.Duration("interval", 5*time.Second, "Polling interval when idle (0 to exit)")
+	enableWeb := rootFlags.Bool("web", true, "Enable web UI")
+	webPort := rootFlags.String("port", "8000", "Port for web UI")
+	rootFlags.Usage = func() {
+		printRootUsage(stderr, rootFlags)
+	}
+
+	if err := rootFlags.Parse(args); err != nil {
+		return err
+	}
+
+	defaults, err := loadWorkDefaults()
+	if err != nil {
+		return err
+	}
+
+	if !flagProvided(rootFlags, "max_concurrency") {
+		*maxConcurrency = defaults.MaxConcurrency
+	}
+	if !flagProvided(rootFlags, "model") {
+		*model = defaults.Model
+	}
+
+	if rootFlags.NArg() == 0 {
+		return runOrchestrator(*maxConcurrency, 0, *model, defaults.AvailableModels, *interval, *enableWeb, *webPort)
+	}
+
+	command := rootFlags.Arg(0)
+	commandArgs := rootFlags.Args()[1:]
+
+	switch command {
+	case "init":
+		return runInit(commandArgs)
+	case "mcp":
+		return runMCP(commandArgs)
+	case "list-features":
+		return runListFeatures(commandArgs)
+	case "list-tasks":
+		return runListTasks(commandArgs)
+	case "status":
+		return runStatus(commandArgs)
+	case "web":
+		return runWeb(commandArgs)
+	case "db":
+		return runDB(commandArgs)
+	default:
+		return fmt.Errorf("unknown command: %s", command)
+	}
+}
+
+func flagProvided(fs *flag.FlagSet, name string) bool {
+	provided := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			provided = true
+		}
+	})
+	return provided
+}
+
+func printRootUsage(w io.Writer, rootFlags *flag.FlagSet) {
+	fmt.Fprintln(w, "Usage:")
+	fmt.Fprintln(w, "  ponder [flags]")
+	fmt.Fprintln(w, "  ponder <command> [args]")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Running `ponder` with no command launches the Work TUI.")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Commands:")
+	fmt.Fprintln(w, "  init          Initialize Ponder in a directory")
+	fmt.Fprintln(w, "  mcp           Start MCP server")
+	fmt.Fprintln(w, "  list-features List all features")
+	fmt.Fprintln(w, "  list-tasks    List all tasks")
+	fmt.Fprintln(w, "  status        Show project status")
+	fmt.Fprintln(w, "  web           Start web server")
+	fmt.Fprintln(w, "  db            Database commands")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Flags:")
+	rootFlags.PrintDefaults()
 }
 
 func runInit(args []string) error {
@@ -345,25 +393,6 @@ func runStatus(args []string) error {
 	}
 
 	return nil
-}
-
-func runWork(args []string) error {
-	defaults, err := loadWorkDefaults()
-	if err != nil {
-		return err
-	}
-
-	workFlags := flag.NewFlagSet("work", flag.ContinueOnError)
-	maxConcurrency := workFlags.Int("max_concurrency", defaults.MaxConcurrency, "Maximum number of concurrent workers")
-	model := workFlags.String("model", defaults.Model, "Model to use for workers")
-	interval := workFlags.Duration("interval", 5*time.Second, "Polling interval when idle (0 to exit)")
-	enableWeb := workFlags.Bool("web", true, "Enable web UI")
-	webPort := workFlags.String("port", "8000", "Port for web UI")
-	if err := workFlags.Parse(args); err != nil {
-		return err
-	}
-
-	return runOrchestratorCommon(*maxConcurrency, 0, *model, defaults.AvailableModels, *interval, *enableWeb, *webPort)
 }
 
 func loadWorkDefaults() (workDefaults, error) {

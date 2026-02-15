@@ -185,7 +185,7 @@ The Orbitor will interview you to gather requirements before creating any featur
 ponder init [directory]
 
 # Start the orchestrator TUI and web server
-ponder work
+ponder
 
 # Configure work defaults in .ponder/config.json
 # {
@@ -194,12 +194,12 @@ ponder work
 #   "available_models": ["opencode/gemini-3-flash", "openai/gpt-5.3-codex"]
 # }
 
-# Work command flags
-ponder work -max_concurrency 5      # Maximum worker cap (default: config.json or 4)
-ponder work -model <model>          # Model for workers (default: config.json or opencode/gemini-3-flash)
-ponder work -interval 10s           # Polling interval when idle (default: 5s, 0 to exit)
-ponder work -web=false              # Disable web UI (default: enabled)
-ponder work -port 8080              # Web server port (default: 8000)
+# Root work flags
+ponder -max_concurrency 5           # Maximum worker cap (default: config.json or 4)
+ponder -model <model>               # Model for workers (default: config.json or opencode/gemini-3-flash)
+ponder -interval 10s                # Polling interval when idle (default: 5s, 0 to exit)
+ponder -web=false                   # Disable web UI (default: enabled)
+ponder -port 8080                   # Web server port (default: 8000)
 
 # Global flags (available for all commands)
 ponder --db-path /path/to/custom.db --snapshot-path /path/to/snapshot.jsonl --verbose
