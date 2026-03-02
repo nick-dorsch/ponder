@@ -431,7 +431,21 @@ func listTasksHandler(database *db.DB) server.ToolHandlerFunc {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		data, err := json.Marshal(map[string]interface{}{"tasks": tasks})
+		// Only return feature_name and name to reduce context
+		type taskSummary struct {
+			FeatureName string `json:"feature_name"`
+			Name        string `json:"name"`
+		}
+
+		summaries := make([]taskSummary, len(tasks))
+		for i, t := range tasks {
+			summaries[i] = taskSummary{
+				FeatureName: t.FeatureName,
+				Name:        t.Name,
+			}
+		}
+
+		data, err := json.Marshal(map[string]interface{}{"tasks": summaries})
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
