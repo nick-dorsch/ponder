@@ -15,6 +15,7 @@ import (
 
 type TaskStore interface {
 	ClaimNextTask(ctx context.Context) (*models.Task, error)
+	GetTask(ctx context.Context, id string) (*models.Task, error)
 	UpdateTaskStatus(ctx context.Context, id string, status models.TaskStatus, summary *string) error
 	CountAvailableTasks(ctx context.Context) (int, error)
 	ResetInProgressTasks(ctx context.Context) error
@@ -336,7 +337,7 @@ func (o *Orchestrator) runWorker(ctx context.Context, worker *workerInstance) {
 	cmd.Stderr = output
 
 	err := cmd.Run()
-	success := err == nil
+	success := false
 
 	if err != nil {
 		o.sendMsg(OutputMsg{
@@ -345,15 +346,38 @@ func (o *Orchestrator) runWorker(ctx context.Context, worker *workerInstance) {
 		})
 
 		o.recordTaskFailure(task.ID)
+		o.resetTaskToPending(task, worker.id)
+	} else {
+		statusCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		latestTask, statusErr := o.store.GetTask(statusCtx, task.ID)
+		cancel()
 
-		resetCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		if resetErr := o.store.UpdateTaskStatus(resetCtx, task.ID, models.TaskStatusPending, nil); resetErr != nil {
+		if statusErr != nil {
 			o.sendMsg(StatusMsg{
 				WorkerID: worker.id,
-				Message:  fmt.Sprintf("Failed to reset task %s: %v", task.Name, resetErr),
+				Message:  fmt.Sprintf("Failed to verify task completion for %s: %v", task.Name, statusErr),
 			})
+			o.recordTaskFailure(task.ID)
+			o.resetTaskToPending(task, worker.id)
+		} else if latestTask == nil {
+			o.sendMsg(StatusMsg{
+				WorkerID: worker.id,
+				Message:  fmt.Sprintf("Task %s no longer exists after worker run", task.Name),
+			})
+			o.recordTaskFailure(task.ID)
+		} else if latestTask.Status == models.TaskStatusCompleted {
+			success = true
+		} else {
+			o.recordTaskFailure(task.ID)
+			o.sendMsg(StatusMsg{
+				WorkerID: worker.id,
+				Message:  fmt.Sprintf("Task %s ended with status %s; only completed tasks count as success", task.Name, latestTask.Status),
+			})
+
+			if latestTask.Status == models.TaskStatusInProgress {
+				o.resetTaskToPending(task, worker.id)
+			}
 		}
-		cancel()
 	}
 
 	o.sendMsg(TaskCompletedMsg{
@@ -368,6 +392,18 @@ func (o *Orchestrator) runWorker(ctx context.Context, worker *workerInstance) {
 		o.completedTasks++
 	}
 	o.workersMu.Unlock()
+}
+
+func (o *Orchestrator) resetTaskToPending(task *models.Task, workerID int) {
+	resetCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if resetErr := o.store.UpdateTaskStatus(resetCtx, task.ID, models.TaskStatusPending, nil); resetErr != nil {
+		o.sendMsg(StatusMsg{
+			WorkerID: workerID,
+			Message:  fmt.Sprintf("Failed to reset task %s: %v", task.Name, resetErr),
+		})
+	}
 }
 
 func (o *Orchestrator) stopAllWorkers() {

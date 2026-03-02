@@ -56,6 +56,20 @@ func (m *mockTaskStore) ClaimNextTask(ctx context.Context) (*models.Task, error)
 	return task, nil
 }
 
+func (m *mockTaskStore) GetTask(ctx context.Context, id string) (*models.Task, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, task := range m.tasks {
+		if task.ID == id {
+			copied := *task
+			return &copied, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func (m *mockTaskStore) UpdateTaskStatus(ctx context.Context, id string, status models.TaskStatus, summary *string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -128,6 +142,21 @@ func (m *mockTaskStore) addTask(id, name string, priority int) *models.Task {
 	return task
 }
 
+func (m *mockTaskStore) completeOneInProgress() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, task := range m.tasks {
+		if task.Status != models.TaskStatusInProgress {
+			continue
+		}
+
+		task.Status = models.TaskStatusCompleted
+		m.statusUpdates = append(m.statusUpdates, statusUpdate{id: task.ID, status: models.TaskStatusCompleted})
+		return
+	}
+}
+
 func TestNewOrchestrator(t *testing.T) {
 	store := newMockTaskStore()
 
@@ -154,6 +183,7 @@ func TestOrchestrator_SingleWorker(t *testing.T) {
 
 	o := NewOrchestrator(store, 1, "test-model")
 	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		store.completeOneInProgress()
 		return exec.CommandContext(ctx, "true")
 	}
 
@@ -182,6 +212,7 @@ func TestOrchestrator_MultipleWorkers(t *testing.T) {
 
 	o := NewOrchestrator(store, 3, "test-model")
 	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		store.completeOneInProgress()
 		return exec.CommandContext(ctx, "true")
 	}
 
@@ -219,6 +250,7 @@ func TestOrchestrator_ConcurrencyLimit(t *testing.T) {
 
 	o := NewOrchestrator(store, 2, "test-model")
 	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		store.completeOneInProgress()
 		return exec.CommandContext(ctx, "true")
 	}
 
@@ -366,6 +398,7 @@ func TestOrchestrator_Messages(t *testing.T) {
 
 	o := NewOrchestrator(store, 1, "test-model")
 	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		store.completeOneInProgress()
 		return exec.CommandContext(ctx, "echo", "test output")
 	}
 
@@ -436,6 +469,7 @@ func TestOrchestrator_ChannelClosure(t *testing.T) {
 	store := newMockTaskStore()
 	o := NewOrchestrator(store, 1, "test-model")
 	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		store.completeOneInProgress()
 		return exec.CommandContext(ctx, "true")
 	}
 
@@ -493,6 +527,7 @@ func TestOrchestrator_GetStats(t *testing.T) {
 
 	o := NewOrchestrator(store, 2, "test-model")
 	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		store.completeOneInProgress()
 		return exec.CommandContext(ctx, "true")
 	}
 
@@ -541,6 +576,7 @@ func TestOrchestrator_Polling(t *testing.T) {
 	o := NewOrchestrator(store, 1, "test-model")
 	o.PollingInterval = 100 * time.Millisecond
 	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		store.completeOneInProgress()
 		return exec.CommandContext(ctx, "true")
 	}
 
@@ -584,6 +620,7 @@ func TestOrchestrator_ZeroTargetWorkersDoesNotSpawn(t *testing.T) {
 	o.SetTargetWorkers(0)
 	o.PollingInterval = 100 * time.Millisecond
 	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		store.completeOneInProgress()
 		return exec.CommandContext(ctx, "true")
 	}
 
@@ -603,6 +640,47 @@ func TestOrchestrator_ZeroTargetWorkersDoesNotSpawn(t *testing.T) {
 
 	if store.claimed["1"] {
 		t.Fatal("expected task not to be claimed when target workers is 0")
+	}
+}
+
+func TestOrchestrator_TaskNotCompletedIsReset(t *testing.T) {
+	store := newMockTaskStore()
+	store.addTask("1", "task1", 1)
+
+	o := NewOrchestrator(store, 1, "test-model")
+	o.cmdFactory = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "true")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+
+	err := o.Start(ctx)
+	if err != nil && err != context.Canceled && err != context.DeadlineExceeded {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	store.mu.Lock()
+	defer store.mu.Unlock()
+
+	if len(store.statusUpdates) < 2 {
+		t.Fatalf("expected status updates for claim and reset, got %d", len(store.statusUpdates))
+	}
+
+	var pendingCount int
+	for _, update := range store.statusUpdates {
+		if update.id == "1" && update.status == models.TaskStatusPending {
+			pendingCount++
+		}
+	}
+
+	if pendingCount == 0 {
+		t.Fatal("expected task to be reset to pending when worker did not complete it")
+	}
+
+	_, completed := o.GetStats()
+	if completed != 0 {
+		t.Fatalf("expected completed=0 when task is not marked completed, got %d", completed)
 	}
 }
 
