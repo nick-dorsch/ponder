@@ -255,16 +255,11 @@ func (db *DB) ClaimNextTask(ctx context.Context) (*models.Task, error) {
 			ORDER BY t.priority DESC, t.created_at ASC
 			LIMIT 1
 		)
-		RETURNING id, feature_id, name, description, specification, priority, tests_required,
-		          status, completion_summary, created_at, updated_at, started_at, completed_at
+		RETURNING id
 	`
 
-	t := &models.Task{}
-	var testsRequired int
-	err := db.QueryRowContext(ctx, query).Scan(
-		&t.ID, &t.FeatureID, &t.Name, &t.Description, &t.Specification, &t.Priority, &testsRequired,
-		&t.Status, &t.CompletionSummary, &t.CreatedAt, &t.UpdatedAt, &t.StartedAt, &t.CompletedAt,
-	)
+	var taskID string
+	err := db.QueryRowContext(ctx, query).Scan(&taskID)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -272,7 +267,14 @@ func (db *DB) ClaimNextTask(ctx context.Context) (*models.Task, error) {
 		return nil, fmt.Errorf("failed to claim next task: %w", err)
 	}
 
-	t.TestsRequired = testsRequired == 1
+	t, err := db.GetTask(ctx, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load claimed task %s: %w", taskID, err)
+	}
+	if t == nil {
+		return nil, fmt.Errorf("claimed task not found: %s", taskID)
+	}
+
 	db.triggerChange(ctx)
 	return t, nil
 }
